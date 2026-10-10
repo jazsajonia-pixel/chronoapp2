@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: write
+
 jobs:
   apk:
     runs-on: ubuntu-latest
@@ -29,3 +32,15 @@ jobs:
         with:
           name: chrono-apk
           path: android/app/build/outputs/apk/release/app-release.apk
+      - name: Rename APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk Chrono.apk
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Chrono Android build ${{ github.run_number }}
+          body: |
+            Android APK for Chrono, built from commit ${{ github.sha }}.
+            Download **Chrono.apk** below and open it on your Android phone.
+          files: Chrono.apk
+          make_latest: true
