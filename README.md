@@ -1,8 +1,8 @@
-# Chrono — native app
+# Chrono for iOS and Android
 
-A native iOS / Android version of [Chrono](https://chrono-tau.vercel.app), the mobile-first code workspace for GitHub repositories (source of the website: [`mobdevai`](https://github.com/jazsajonia-pixel/mobdevai)).
+Chrono's native companion app brings the mobile-first GitHub coding workspace to iOS and Android. Built with Expo, React Native, and `expo-router`, it uses native screens rather than wrapping the web app.
 
-It is a real React Native app (Expo SDK 57, expo-router) — not a WebView wrapper around the website. Every screen is built from native components; it talks to the **same Chrono API on Vercel and the same Neon Postgres database** as the website, so your account, AI providers, skills and settings are shared between web and app.
+The app connects to the shared Chrono API and Neon Postgres database, so accounts, AI provider settings, skills, and workspace data stay in sync with the web experience.
 
 ## Features (parity with the website)
 
