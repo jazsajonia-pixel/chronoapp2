@@ -85,7 +85,9 @@ async function nativeGitHubSignIn(includePrivate: boolean): Promise<string> {
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session>({ mode: "anonymous" });
-  const [loading, setLoading] = useState(true);
+  // The root layout reads the keychain before the native splash hides, so a signed-out start never
+  // waits on the network: only a saved session needs the server check (shown as the launch screen).
+  const [loading, setLoading] = useState(() => getSessionToken() !== null);
   const [endedReason, setEndedReason] = useState<ErrorCode | null>(null);
   const [restoreError, setRestoreError] = useState<ErrorCode | null>(null);
 
@@ -100,8 +102,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let alive = true;
+    // loadSessionToken() is a no-op re-read when the root layout already loaded it (fast, local).
     void loadSessionToken()
       .then(fetchGitHubSession)
+      .catch((): { session: Session; unreachable: ErrorCode | null } => ({ session: { mode: "anonymous" }, unreachable: "BACKEND_UNAVAILABLE" }))
       .then((r) => {
         if (!alive) return;
         apply(r);

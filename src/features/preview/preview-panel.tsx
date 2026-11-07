@@ -3,29 +3,21 @@ import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, Text, View } 
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import type { ShouldStartLoadRequest } from "react-native-webview/lib/WebViewTypes";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { AlertTriangle, ChevronDown, Code2, Info, Maximize2, Minimize2, Monitor, RotateCw, ServerOff, Smartphone, Sparkles, Terminal, X } from "lucide-react-native";
+import { AlertTriangle, ChevronDown, Code2, Info, Maximize2, Minimize2, RotateCw, ServerOff, Sparkles, Terminal, X } from "lucide-react-native";
 import { useWorkspace } from "@/features/workspace/context";
-import { safeStorage } from "@/lib/storage";
-import { emit } from "@/lib/events";
 import type { WorkspaceTab } from "@/lib/nav";
 import { Btn, IconBtn, Row, Sheet, T } from "@/ui/kit";
 import { FONT, RADIUS, useTheme, type ColorName } from "@/ui/theme";
 import { LivePanel } from "./live-panel";
 import { usePreview, type ConsoleEntry, type RuntimeError } from "./use-preview";
+import { prefillAgent } from "./agent-prefill";
+import { DESKTOP_VIEWPORT, DeviceFrame, DeviceToggle, type Device } from "./viewport";
 
-type Device = "fit" | "phone" | "desktop";
 const BASE_URL = "https://preview.chrono.invalid/";
 
 const LEVEL_COLOR: Record<ConsoleEntry["level"], ColorName> = { log: "foreground", debug: "mutedForeground", info: "primary", warn: "warning", error: "danger" };
 
-/** Hand a prompt to the AI tab (read once by the agent composer). */
-export function prefillAgent(storageKey: string, text: string, mode: "ask" | "agent") {
-  safeStorage.set(`agent-prefill:${storageKey}`, JSON.stringify({ text, mode }), "session");
-  emit("agent-prefill", { storageKey });
-}
-
-/** Desktop mode: lay the page out at 1280px and let the WebView scale it down to fit. */
-const DESKTOP_VIEWPORT = `(function(){try{var m=document.querySelector('meta[name=viewport]');if(!m){m=document.createElement('meta');m.name='viewport';(document.head||document.documentElement).appendChild(m);}m.content='width=1280';}catch(e){}})();true;`;
+export { prefillAgent };
 
 function ErrorCard({ title, message, file, line, frame, onOpen, onAskAi }: { title: string; message: string; file: string | null; line: number | null; frame: string | null; onOpen?: () => void; onAskAi: () => void }) {
   const { c, a } = useTheme();
@@ -58,7 +50,6 @@ function ErrorCard({ title, message, file, line, frame, onOpen, onAskAi }: { tit
 }
 
 function Frame({ html, frameKey, device, onMessage, title }: { html: string; frameKey: number; device: Device; onMessage: (raw: string) => void; title: string }) {
-  const { c } = useTheme();
   const onShouldStart = (req: ShouldStartLoadRequest) => {
     // Sub-frames, the srcdoc itself and in-page anchors stay; the app can't navigate this screen elsewhere.
     if (req.isTopFrame === false) return true;
@@ -89,14 +80,7 @@ function Frame({ html, frameKey, device, onMessage, title }: { html: string; fra
       containerStyle={{ backgroundColor: "#fff" }}
     />
   );
-  if (device === "phone") {
-    return (
-      <View style={{ flex: 1, alignItems: "center", paddingVertical: 12, backgroundColor: c.muted }}>
-        <View style={{ flex: 1, width: 390, maxWidth: "94%", borderRadius: 26, borderWidth: 4, borderColor: c.foreground, overflow: "hidden", backgroundColor: "#fff" }}>{view}</View>
-      </View>
-    );
-  }
-  return view;
+  return <DeviceFrame device={device}>{view}</DeviceFrame>;
 }
 
 export function PreviewPanel({ owner, repo, assetUrl, onTab }: { owner: string; repo: string; active?: boolean; assetUrl?: (path: string) => string | null; onTab: (t: WorkspaceTab) => void }) {
@@ -167,16 +151,7 @@ export function PreviewPanel({ owner, repo, assetUrl, onTab }: { owner: string; 
           </Pressable>
         ) : null}
       </Row>
-      <View accessibilityRole="radiogroup" accessibilityLabel="Viewport" style={{ flexDirection: "row", borderRadius: RADIUS.sm, backgroundColor: c.muted, padding: 2 }}>
-        {([["fit", "Fit", Maximize2], ["phone", "Phone", Smartphone], ["desktop", "Desktop", Monitor]] as const).map(([d, label, Icon]) => {
-          const on = device === d;
-          return (
-            <Pressable key={d} accessibilityRole="radio" accessibilityState={{ checked: on }} accessibilityLabel={label} onPress={() => setDevice(d)} testID={`device-${d}`} style={{ width: 32, height: 28, borderRadius: 6, alignItems: "center", justifyContent: "center", backgroundColor: on ? c.background : "transparent" }}>
-              <Icon size={14} color={on ? c.foreground : c.mutedForeground} />
-            </Pressable>
-          );
-        })}
-      </View>
+      <DeviceToggle device={device} onChange={setDevice} />
       <IconBtn icon={RotateCw} label="Rebuild and reload" size={38} onPress={p.rebuild} testID="button-reload-preview" />
       <View>
         <IconBtn icon={Terminal} label="Console" size={38} onPress={() => setConsoleOpen(true)} testID="button-console" />
