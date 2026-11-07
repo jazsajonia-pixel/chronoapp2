@@ -30,11 +30,12 @@ export function LivePanel({ owner, repo, label, onTab }: { owner: string; repo: 
   const [logsOpen, setLogsOpen] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const transitioning = status === "starting" || status === "stopping";
+  const { start } = live;
 
   // Same as the website: opening Preview on a server project starts it once; failures wait for Retry.
   useEffect(() => {
-    if (status === "idle") void live.start();
-  }, [status, live.start]);
+    if (status === "idle") void start();
+  }, [status, start]);
   useEffect(() => setLoadError(null), [url, live.frameKey]);
 
   const statusText =

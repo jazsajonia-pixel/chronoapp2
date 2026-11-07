@@ -22,7 +22,7 @@ import { describeError } from "@/lib/errors";
 import type { ProjectRef } from "@/types/workspace";
 import type { RepoSummary } from "@/types/github";
 import { Badge, Btn, EmptyState, ErrorState, Header, IconBtn, Row, Skeleton, T, haptic } from "@/ui/kit";
-import { FONT, RADIUS, useTheme } from "@/ui/theme";
+import { FONT, useTheme } from "@/ui/theme";
 
 function toProjectRef(repo: RepoSummary): ProjectRef {
   return { id: `github/${repo.fullName}`, source: "github", owner: repo.owner, name: repo.name, defaultBranch: repo.defaultBranch, visibility: repo.private ? "private" : "public", description: repo.description ?? undefined };

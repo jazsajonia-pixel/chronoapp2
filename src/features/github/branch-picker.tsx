@@ -3,7 +3,7 @@ import { Pressable, TextInput, View } from "react-native";
 import { Check, GitBranch, Lock, Search } from "lucide-react-native";
 import type { BranchListResponse } from "@/types/github";
 import type { AsyncState } from "@/hooks/use-async";
-import { Badge, EmptyState, ErrorState, Row, Sheet, Skeleton, T } from "@/ui/kit";
+import { Badge, EmptyState, ErrorState, Sheet, Skeleton, T } from "@/ui/kit";
 import { FONT, RADIUS, useTheme } from "@/ui/theme";
 
 export function BranchPicker({ open, onOpenChange, branches, current, defaultBranch, onSelect, onRetry }: { open: boolean; onOpenChange: (open: boolean) => void; branches: AsyncState<BranchListResponse>; current: string; defaultBranch: string; onSelect: (branch: string) => void; onRetry: () => void }) {
