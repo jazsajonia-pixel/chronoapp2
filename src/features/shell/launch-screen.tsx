@@ -6,16 +6,14 @@ import { FONT } from "@/ui/theme";
 const BACKGROUND = "#080A10";
 const TRACK = "#272A36";
 const ACCENT = "#4D85FF";
-const MINIMUM_SHOW_MS = 620;
 const STATUS_DELAY_MS = 1600;
 const SLOW_DELAY_MS = 8000;
 const EXIT_MS = 180;
 
-export function LaunchScreen({ restoring, onDone }: { restoring: boolean; onDone: () => void }) {
+export function LaunchScreen({ appReady, fontsReady, restoring, onDone }: { appReady: boolean; fontsReady: boolean; restoring: boolean; onDone: () => void }) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [reduceMotion, setReduceMotion] = useState<boolean | null>(null);
-  const [minimumElapsed, setMinimumElapsed] = useState(false);
   const [phase, setPhase] = useState<"quiet" | "status" | "slow">("quiet");
   const [dismissed, setDismissed] = useState(false);
   const [intro] = useState(() => new Animated.Value(0));
@@ -33,11 +31,6 @@ export function LaunchScreen({ restoring, onDone }: { restoring: boolean; onDone
     return () => {
       alive = false;
     };
-  }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setMinimumElapsed(true), MINIMUM_SHOW_MS);
-    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -66,13 +59,14 @@ export function LaunchScreen({ restoring, onDone }: { restoring: boolean; onDone
   }, [reduceMotion, travel]);
 
   useEffect(() => {
+    if (!appReady || !restoring) return;
     const status = setTimeout(() => setPhase("status"), STATUS_DELAY_MS);
     const slow = setTimeout(() => setPhase("slow"), SLOW_DELAY_MS);
     return () => {
       clearTimeout(status);
       clearTimeout(slow);
     };
-  }, []);
+  }, [appReady, restoring]);
 
   useEffect(() => {
     if (phase === "quiet") return;
@@ -80,8 +74,7 @@ export function LaunchScreen({ restoring, onDone }: { restoring: boolean; onDone
   }, [phase, reduceMotion, statusOpacity]);
 
   useEffect(() => {
-    if (restoring && !dismissed) return;
-    if (!minimumElapsed) return;
+    if (!appReady || (restoring && !dismissed) || reduceMotion === null) return;
     if (reduceMotion) {
       onDone();
       return;
@@ -89,7 +82,7 @@ export function LaunchScreen({ restoring, onDone }: { restoring: boolean; onDone
     const exit = Animated.timing(opacity, { toValue: 0, duration: EXIT_MS, easing: Easing.out(Easing.quad), useNativeDriver: true });
     exit.start(({ finished }) => finished && onDone());
     return () => exit.stop();
-  }, [dismissed, minimumElapsed, onDone, opacity, reduceMotion, restoring]);
+  }, [appReady, dismissed, onDone, opacity, reduceMotion, restoring]);
 
   const translateX = travel.interpolate({ inputRange: [0, 1], outputRange: [-segmentWidth, trackWidth] });
   const bottomOffset = Math.max(56, insets.bottom + 30);
@@ -102,6 +95,7 @@ export function LaunchScreen({ restoring, onDone }: { restoring: boolean; onDone
           accessibilityLabel="Chrono"
           style={[
             styles.wordmark,
+            { fontFamily: fontsReady ? FONT.semibold : undefined },
             {
               opacity: intro,
               transform: [
@@ -149,7 +143,7 @@ export function LaunchScreen({ restoring, onDone }: { restoring: boolean; onDone
 const styles = StyleSheet.create({
   root: { backgroundColor: BACKGROUND, alignItems: "center", justifyContent: "center", zIndex: 100, elevation: 100 },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  wordmark: { color: "#F0F2F7", fontFamily: FONT.semibold, fontSize: 40, lineHeight: 48, letterSpacing: -1.25 },
+  wordmark: { color: "#F0F2F7", fontSize: 40, lineHeight: 48, letterSpacing: -1.25 },
   track: { position: "absolute", height: 4, borderRadius: 3, overflow: "hidden", backgroundColor: TRACK },
   segment: { height: 4, borderRadius: 3, backgroundColor: ACCENT },
   status: { position: "absolute", bottom: 78, left: 24, right: 24, alignItems: "center", gap: 12 },
