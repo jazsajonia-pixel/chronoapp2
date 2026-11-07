@@ -37,43 +37,39 @@ function WorkspacePreview() {
       </T>
     </Row>
   );
+  // A static sketch of the real workspace (top tabs, code, agent plan). Everything sits in normal
+  // flow — no floating chips — so nothing overlaps at small widths or large text sizes.
   return (
-    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ marginTop: 28 }}>
-      <View style={{ borderRadius: RADIUS.xl, borderWidth: 1, borderColor: a("primary", 0.25), backgroundColor: c.surface, overflow: "hidden" }}>
-        <Row style={{ paddingHorizontal: 12, height: 36, borderBottomWidth: 1, borderBottomColor: c.border, justifyContent: "space-between" }}>
-          <T variant="monoSmall" color="foreground">you/task-app</T>
-          <Row gap={4}><GitBranch size={11} color={c.mutedForeground} /><T variant="monoSmall">main</T></Row>
+    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ marginTop: 28, borderRadius: RADIUS.xl, borderWidth: 1, borderColor: a("primary", 0.25), backgroundColor: c.surface, overflow: "hidden" }}>
+      <Row style={{ paddingHorizontal: 12, minHeight: 38, justifyContent: "space-between" }}>
+        <T variant="monoSmall" color="foreground">you/task-app</T>
+        <Row gap={4}>
+          <GitBranch size={11} color={c.mutedForeground} />
+          <T variant="monoSmall">ai/task-count</T>
         </Row>
-        <View style={{ padding: 12, gap: 4 }}>
-          <Row gap={6} style={{ marginBottom: 6 }}>
-            <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: c.surface2 }}><T variant="monoSmall" color="foreground">App.jsx</T></View>
-            <T variant="monoSmall">task-count</T>
-          </Row>
-          {line("01", [["import ", "primary"], ["TaskList ", "foreground"], ["from ", "primary"], ['"./components"', "success"]])}
-          {line("02", [["export default ", "primary"], ["function ", "primary"], ["App", "warning"], ["() {", "mutedForeground"]])}
-          {line("03", [["  const ", "primary"], ["[tasks] = ", "foreground"], ["useTasks", "warning"], ["()", "mutedForeground"]])}
-          {line("04", [["  return ", "primary"], ["<TaskList ", "danger"], ["count", "warning"], ["={tasks.length} />", "mutedForeground"]])}
-        </View>
-        <Row style={{ borderTopWidth: 1, borderTopColor: c.border, height: 38, justifyContent: "space-around" }}>
-          {["Files", "AI", "Preview", "Git"].map((t) => (
-            <T key={t} variant="tiny" style={t === "AI" ? { color: c.primary, fontFamily: FONT.semibold } : undefined}>{t}</T>
-          ))}
-        </Row>
+      </Row>
+      <Row gap={18} style={{ paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: c.border }}>
+        {["Files", "AI", "Preview", "Git"].map((t) => (
+          <View key={t} style={{ paddingVertical: 7, borderBottomWidth: 2, borderBottomColor: t === "AI" ? c.primary : "transparent" }}>
+            <T variant="tiny" style={t === "AI" ? { color: c.foreground, fontFamily: FONT.semibold } : undefined}>{t}</T>
+          </View>
+        ))}
+      </Row>
+      <View style={{ padding: 12, gap: 4 }}>
+        <T variant="monoSmall" style={{ marginBottom: 6 }}>App.jsx</T>
+        {line("01", [["import ", "primary"], ["TaskList ", "foreground"], ["from ", "primary"], ['"./components"', "success"]])}
+        {line("02", [["export default ", "primary"], ["function ", "primary"], ["App", "warning"], ["() {", "mutedForeground"]])}
+        {line("03", [["  const ", "primary"], ["[tasks] = ", "foreground"], ["useTasks", "warning"], ["()", "mutedForeground"]])}
+        {line("04", [["  return ", "primary"], ["<TaskList ", "danger"], ["count", "warning"], ["={tasks.length} />", "mutedForeground"]])}
       </View>
-      <View style={{ position: "absolute", right: -4, top: -18, flexDirection: "row", alignItems: "center", gap: 8, padding: 10, borderRadius: RADIUS.lg, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border }}>
+      <Row gap={10} style={{ paddingHorizontal: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: c.border }}>
         <Sparkles size={14} color={c.primary} />
-        <View>
-          <T variant="label" style={{ fontSize: 8 }}>AGENT PLAN</T>
-          <T variant="small" color="foreground" weight="semibold">Update task count</T>
-          <T variant="tiny">2 files · ready to review</T>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <T variant="small" color="foreground" weight="semibold" numberOfLines={1}>Plan: update task count</T>
+          <T variant="tiny" numberOfLines={1}>2 files · ready to review</T>
         </View>
         <Check size={14} color={c.success} />
-      </View>
-      <View style={{ position: "absolute", left: -4, bottom: -16, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, height: 30, borderRadius: 999, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border }}>
-        <GitBranch size={13} color={c.foreground} />
-        <T variant="monoSmall" color="foreground">ai/task-count</T>
-        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c.success }} />
-      </View>
+      </Row>
     </View>
   );
 }

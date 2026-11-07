@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Keyboard, KeyboardAvoidingView, Linking, Platform, Pressable, Text, View } from "react-native";
+import { KeyboardAvoidingView, Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ChevronDown, ChevronLeft, ExternalLink, FolderGit2, GitBranch, Lock, Play, Search } from "lucide-react-native";
+import { useKeyboardCompact, useKeyboardVisible } from "@/hooks/use-keyboard-visible";
+import { ChevronDown, FolderGit2, GitBranch, Lock, Menu, Play, Search } from "lucide-react-native";
+import { openDrawer } from "@/features/shell/drawer-store";
 import { FilesTab } from "@/features/editor/files-tab";
 import { ChangesPanel } from "@/features/git/changes-panel";
 import type { GitTarget } from "@/features/git/ship-panel";
@@ -21,7 +23,7 @@ import { WORKSPACE_TABS, WORKSPACE_TAB_META, isWorkspaceTab, type WorkspaceTab }
 import { describeError } from "@/lib/errors";
 import type { ProjectRef } from "@/types/workspace";
 import type { RepoSummary } from "@/types/github";
-import { Badge, Btn, EmptyState, ErrorState, Header, IconBtn, Row, Skeleton, T, haptic } from "@/ui/kit";
+import { Btn, EmptyState, ErrorState, Header, IconBtn, Row, Skeleton, T, haptic } from "@/ui/kit";
 import { FONT, useTheme } from "@/ui/theme";
 
 function toProjectRef(repo: RepoSummary): ProjectRef {
@@ -67,96 +69,112 @@ function WorkspaceHeader({ project, branch, onBranch, onPreview }: { project: Pr
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   return (
-    <View style={{ paddingTop: insets.top, backgroundColor: c.background, borderBottomWidth: 1, borderBottomColor: c.border }}>
-      <Row style={{ minHeight: 54, paddingHorizontal: 4 }} gap={2}>
-        <IconBtn icon={ChevronLeft} label="Back to projects" onPress={() => (router.canGoBack() ? router.back() : router.replace("/projects"))} />
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <T variant="h3" numberOfLines={1} testID="text-repo-name">
-            <T variant="small" style={{ fontSize: 14 }}>{project.owner}/</T>
+    <View style={{ paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right, backgroundColor: c.background }}>
+      <Row style={{ minHeight: 56, paddingHorizontal: 4 }} gap={2}>
+        <IconBtn icon={Menu} label="Open menu" size={48} onPress={openDrawer} testID="button-open-menu" />
+        <View style={{ flex: 1, minWidth: 0, paddingLeft: 2 }}>
+          <T numberOfLines={1} testID="text-repo-name" style={{ fontSize: 16, lineHeight: 21, fontFamily: FONT.semibold }}>
             {project.name}
           </T>
           {onBranch ? (
-            <Pressable onPress={onBranch} hitSlop={6} testID="button-branch" style={{ flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", marginTop: 1 }}>
+            <Pressable onPress={onBranch} hitSlop={8} testID="button-branch" accessibilityRole="button" accessibilityLabel={`Branch ${branch}. Change branch`} style={{ flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", minHeight: 22 }}>
+              <T variant="small" numberOfLines={1} style={{ flexShrink: 1 }}>{project.owner}</T>
+              <T variant="small">·</T>
               <GitBranch size={12} color={c.mutedForeground} />
-              <T variant="monoSmall" numberOfLines={1} style={{ maxWidth: 200 }} testID="text-branch">{branch}</T>
-              <ChevronDown size={12} color={c.mutedForeground} />
+              <T variant="monoSmall" numberOfLines={1} style={{ maxWidth: 160, fontSize: 12 }} testID="text-branch">{branch}</T>
+              <ChevronDown size={13} color={c.mutedForeground} />
             </Pressable>
           ) : (
-            <Row gap={4}>
-              <GitBranch size={12} color={c.mutedForeground} />
-              <T variant="monoSmall" testID="text-branch">{branch}</T>
+            <Row gap={4} style={{ minHeight: 22 }}>
+              <T variant="small" numberOfLines={1}>{project.owner}</T>
+              <T variant="small">·</T>
+              <T variant="monoSmall" testID="text-branch" style={{ fontSize: 12 }}>{branch}</T>
             </Row>
           )}
         </View>
-        {project.visibility === "private" ? <Badge label="Private" icon={Lock} /> : null}
-        <IconBtn icon={Search} label="Search files and commands" onPress={openCommandPalette} testID="button-workspace-search" />
-        {onPreview ? <IconBtn icon={Play} label="Preview" onPress={onPreview} testID="button-header-preview" color="primary" /> : null}
+        {project.visibility === "private" ? <Lock size={14} color={c.mutedForeground} accessibilityLabel="Private repository" /> : null}
+        <IconBtn icon={Search} label="Search files and commands" size={44} onPress={openCommandPalette} testID="button-workspace-search" />
+        {onPreview ? <IconBtn icon={Play} label="Preview" size={44} onPress={onPreview} testID="button-header-preview" color="primary" /> : null}
       </Row>
     </View>
   );
 }
 
-function useKeyboardVisible(): boolean {
-  const [shown, setShown] = useState(false);
-  useEffect(() => {
-    const show = Keyboard.addListener(Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow", () => setShown(true));
-    const hide = Keyboard.addListener(Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide", () => setShown(false));
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, []);
-  return shown;
-}
-
-function WorkspaceTabBar({ tab, onTab, badge }: { tab: WorkspaceTab; onTab: (t: WorkspaceTab) => void; badge: number }) {
+/** Workspace sections as a text tab strip under the top bar (no bottom bar: the chat composer and editor own the bottom edge). */
+function WorkspaceTabs({ tab, onTab, badge }: { tab: WorkspaceTab; onTab: (t: WorkspaceTab) => void; badge: number }) {
   const { c, a } = useTheme();
   const insets = useSafeAreaInsets();
-  // Typing gets the whole screen above the keyboard (the website hides its tab bar the same way).
-  const keyboard = useKeyboardVisible();
-  if (keyboard) return null;
   return (
-    <View style={{ flexDirection: "row", borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.sidebar, paddingBottom: Math.max(insets.bottom, 6), paddingTop: 6 }}>
+    // Tabs share the width when they fit and scroll sideways instead of truncating on narrow
+    // screens / large font scales.
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      accessibilityRole="tablist"
+      style={{ flexGrow: 0, borderBottomWidth: 1, borderBottomColor: c.border, backgroundColor: c.background }}
+      contentContainerStyle={{ flexGrow: 1, paddingLeft: insets.left + 4, paddingRight: insets.right + 4 }}
+    >
       {WORKSPACE_TABS.map((t) => {
         const meta = WORKSPACE_TAB_META[t];
         const on = t === tab;
-        const Icon = meta.icon;
         return (
           <Pressable
             key={t}
             testID={`tab-${t}`}
             accessibilityRole="tab"
             accessibilityState={{ selected: on }}
-            accessibilityLabel={meta.label}
+            accessibilityLabel={t === "git" && badge > 0 ? `${meta.label}, ${badge} changed` : meta.label}
             onPress={() => {
               haptic.tap();
               onTab(t);
             }}
-            style={{ flex: 1, alignItems: "center", gap: 3, paddingVertical: 4 }}
+            android_ripple={{ color: a("foreground", 0.08), borderless: false }}
+            style={{ flexGrow: 1, minHeight: 44, paddingHorizontal: 14, alignItems: "center", justifyContent: "center" }}
           >
-            <View style={{ paddingHorizontal: 14, paddingVertical: 3, borderRadius: 999, backgroundColor: on ? a("primary", 0.14) : "transparent" }}>
-              <Icon size={20} color={on ? c.primary : c.mutedForeground} />
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+              <Text numberOfLines={1} maxFontSizeMultiplier={1.4} style={{ fontSize: 14, fontFamily: on ? FONT.semibold : FONT.medium, color: on ? c.foreground : c.mutedForeground }}>{meta.label}</Text>
               {t === "git" && badge > 0 ? (
-                <View testID="badge-changes" style={{ position: "absolute", top: -2, right: 4, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: c.primary, alignItems: "center", justifyContent: "center", paddingHorizontal: 3 }}>
-                  <Text style={{ color: c.primaryForeground, fontSize: 10, fontFamily: FONT.bold }}>{badge > 99 ? "99+" : badge}</Text>
+                <View testID="badge-changes" style={{ minWidth: 18, height: 18, borderRadius: 9, backgroundColor: c.primary, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 }}>
+                  <Text maxFontSizeMultiplier={1.2} style={{ color: c.primaryForeground, fontSize: 11, fontFamily: FONT.semibold }}>{badge > 99 ? "99+" : badge}</Text>
                 </View>
               ) : null}
             </View>
-            <Text style={{ fontSize: 11, fontFamily: on ? FONT.semibold : FONT.medium, color: on ? c.foreground : c.mutedForeground }}>{meta.label}</Text>
+            <View style={{ position: "absolute", left: 10, right: 10, bottom: -1, height: 2, borderRadius: 1, backgroundColor: on ? c.primary : "transparent" }} />
           </Pressable>
         );
       })}
-    </View>
+    </ScrollView>
   );
 }
 
-function GitBadgeBar(props: { tab: WorkspaceTab; onTab: (t: WorkspaceTab) => void }) {
+/** Gesture-bar clearance under the panes; the keyboard covers that area while it's open. */
+function BottomInset() {
+  const insets = useSafeAreaInsets();
+  const keyboard = useKeyboardVisible();
+  return keyboard ? null : <View style={{ height: insets.bottom }} />;
+}
+
+function TopInset() {
+  const insets = useSafeAreaInsets();
+  return <View style={{ height: insets.top }} />;
+}
+
+/** Keeps pane content clear of side cutouts/gesture edges in landscape, with a little extra room on wide screens. */
+function Panes({ children }: { children: ReactNode }) {
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const extra = width >= 700 ? 12 : 0;
+  return <View style={{ flex: 1, paddingLeft: insets.left + extra, paddingRight: insets.right + extra }}>{children}</View>;
+}
+
+function GitBadgeTabs(props: { tab: WorkspaceTab; onTab: (t: WorkspaceTab) => void }) {
   const ws = useOptionalWorkspace();
-  return <WorkspaceTabBar {...props} badge={ws ? ws.changes.length : 0} />;
+  return <WorkspaceTabs {...props} badge={ws ? ws.changes.length : 0} />;
 }
 
 function GitHubWorkspace({ owner, name, initialTab }: { owner: string; name: string; initialTab: WorkspaceTab }) {
   const { c } = useTheme();
+  const compact = useKeyboardCompact();
   const [tab, setTabState] = useState<WorkspaceTab>(initialTab);
   // Tabs stay mounted once visited (editor history, agent chat and preview survive tab switches).
   const [visited, setVisited] = useState<ReadonlySet<WorkspaceTab>>(() => new Set([initialTab]));
@@ -165,7 +183,7 @@ function GitHubWorkspace({ owner, name, initialTab }: { owner: string; name: str
     setVisited((v) => (v.has(t) ? v : new Set(v).add(t)));
     router.setParams({ tab: t });
   };
-  const params = useLocalSearchParams<{ tab?: string }>();
+  const params = useLocalSearchParams<{ tab?: string; branch?: string }>();
   useEffect(() => {
     if (isWorkspaceTab(params.tab) && params.tab !== tab) {
       setTabState(params.tab);
@@ -176,7 +194,11 @@ function GitHubWorkspace({ owner, name, initialTab }: { owner: string; name: str
 
   const repo = useAsync(() => githubApi.repo(owner, name), [owner, name]);
   const branches = useAsync(() => githubApi.branches(owner, name), [owner, name]);
-  const [branch, setBranch] = useState<string | null>(() => lastBranch(owner, name));
+  const [branch, setBranch] = useState<string | null>(() => (typeof params.branch === "string" && params.branch ? params.branch : lastBranch(owner, name)));
+  // A chat link (drawer / Chats) can carry its branch; follow it if this workspace is already open.
+  useEffect(() => {
+    if (typeof params.branch === "string" && params.branch) setBranch(params.branch);
+  }, [params.branch]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [created, setCreated] = useState<ReadonlySet<string>>(() => new Set());
   const [gitVersion, setGitVersion] = useState(0);
@@ -302,19 +324,20 @@ function GitHubWorkspace({ owner, name, initialTab }: { owner: string; name: str
     ));
   }
 
+  // Android is edge-to-edge, so the window no longer resizes for the keyboard: "padding" lifts the
+  // composer/editor toolbar above it on both platforms. Bottom safe-area padding lives in each pane.
+  // Landscape phones: with the keyboard up there is ~140dp left, so the header + tabs step aside
+  // and the composer/editor bar stays visible above the keyboard.
   const shell = (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1, backgroundColor: c.background }}>
-      <WorkspaceHeader project={project} branch={shownBranch} onBranch={repo.status === "success" ? () => setPickerOpen(true) : undefined} onPreview={tab !== "preview" && source ? () => setTab("preview") : undefined} />
-      <View style={{ flex: 1 }}>
-        {body}
-      </View>
-      {repo.status === "success" && (tab === "git" || !source) ? (
-        <Pressable onPress={() => void Linking.openURL(`https://github.com/${owner}/${name}`)} style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 8, borderTopWidth: 1, borderTopColor: c.border }}>
-          <ExternalLink size={13} color={c.mutedForeground} />
-          <T variant="tiny">Open on GitHub</T>
-        </Pressable>
-      ) : null}
-      <GitBadgeBar tab={tab} onTab={setTab} />
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: c.background }}>
+      {compact ? <TopInset /> : (
+        <>
+          <WorkspaceHeader project={project} branch={shownBranch} onBranch={repo.status === "success" ? () => setPickerOpen(true) : undefined} onPreview={tab !== "preview" && source ? () => setTab("preview") : undefined} />
+          <GitBadgeTabs tab={tab} onTab={setTab} />
+        </>
+      )}
+      <Panes>{body}</Panes>
+      <BottomInset />
       {source ? <PaletteFiles name={name} branch={shownBranch} goFiles={goFiles} /> : null}
       {repo.status === "success" ? (
         <BranchPicker

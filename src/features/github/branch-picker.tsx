@@ -19,7 +19,7 @@ export function BranchPicker({ open, onOpenChange, branches, current, defaultBra
     <Sheet open={open} onClose={() => onOpenChange(false)} title="Switch branch" description="Files reload from the selected branch.">
       <View style={{ flexDirection: "row", alignItems: "center", height: 44, borderRadius: RADIUS.md, borderWidth: 1, borderColor: c.border, backgroundColor: c.background, paddingHorizontal: 12, gap: 8 }}>
         <Search size={16} color={c.mutedForeground} />
-        <TextInput value={q} onChangeText={setQ} placeholder="Find a branch" placeholderTextColor={c.mutedForeground} autoCapitalize="none" autoCorrect={false} testID="input-branch-search" style={{ flex: 1, color: c.foreground, fontFamily: FONT.mono, fontSize: 14 }} />
+        <TextInput disableFullscreenUI value={q} onChangeText={setQ} placeholder="Find a branch" placeholderTextColor={c.mutedForeground} autoCapitalize="none" autoCorrect={false} testID="input-branch-search" style={{ flex: 1, color: c.foreground, fontFamily: FONT.mono, fontSize: 14 }} />
       </View>
       {branches.status === "loading" ? (
         <View style={{ gap: 8 }}>

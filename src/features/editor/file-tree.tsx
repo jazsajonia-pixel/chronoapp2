@@ -1,6 +1,6 @@
 import { memo, useCallback, useMemo, useState } from "react";
 import { FlatList, Pressable, Text, View } from "react-native";
-import { ChevronRight, FileCode2, FileText, Folder, FolderOpen, Trash2 } from "lucide-react-native";
+import { ChevronRight, FileCode2, FileText, Folder, FolderOpen } from "lucide-react-native";
 import type { TreeNode } from "@/types/workspace";
 import type { FileMark } from "./marks";
 import { FONT, useTheme, type ColorName } from "@/ui/theme";
@@ -47,22 +47,20 @@ const Row = memo(function Row({ item, open, active, mark, dirty, onPress, onDele
       testID={file ? `file-${node.path}` : `folder-${node.path}`}
       accessibilityState={file ? { selected: active } : { expanded: open }}
       accessibilityHint={file ? "Long press to delete" : undefined}
-      style={({ pressed }) => ({ height: ROW_H, flexDirection: "row", alignItems: "center", gap: 8, paddingLeft: 12 + depth * 16, paddingRight: 4, backgroundColor: active ? a("primary", 0.1) : pressed ? c.surface2 : "transparent" })}
+      accessibilityActions={file ? [{ name: "delete", label: `Delete ${node.name}` }] : undefined}
+      onAccessibilityAction={file ? (e) => e.nativeEvent.actionName === "delete" && onDelete(node.path) : undefined}
+      delayLongPress={400}
+      style={({ pressed }) => ({ height: ROW_H, flexDirection: "row", alignItems: "center", gap: 8, paddingLeft: 12 + depth * 16, paddingRight: 12, backgroundColor: active ? a("primary", 0.1) : pressed ? c.surface2 : "transparent" })}
     >
       {file ? <View style={{ width: 14 }} /> : <View style={{ transform: [{ rotate: open ? "90deg" : "0deg" }] }}><ChevronRight size={14} color={c.mutedForeground} /></View>}
       <Icon size={16} color={file ? (active ? c.primary : c.mutedForeground) : c.primary} />
       <Text numberOfLines={1} style={{ flex: 1, fontFamily: file ? FONT.mono : FONT.medium, fontSize: file ? 13 : 14, color: active ? c.primary : c.foreground }}>{node.name}</Text>
       {file ? <Mark mark={mark} /> : dirty ? <View accessibilityLabel="contains changes" style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c.warning, marginRight: 8 }} /> : null}
-      {file ? (
-        <Pressable onPress={() => onDelete(node.path)} hitSlop={6} accessibilityLabel={`Delete ${node.name}`} testID={`button-delete-file-${node.path}`} style={{ width: 36, height: 36, alignItems: "center", justifyContent: "center", opacity: 0.55 }}>
-          <Trash2 size={14} color={c.mutedForeground} />
-        </Pressable>
-      ) : null}
     </Pressable>
   );
 });
 
-/** Virtualized file tree: folders expand in place; files open; long-press or trash to delete. */
+/** Virtualized file tree: folders expand in place; files open; long-press (or the screen-reader action) to delete. */
 export function FileTree({ nodes, onOpen, onDelete, marks, active, header }: { nodes: TreeNode[]; onOpen: (path: string) => void; onDelete: (path: string) => void; marks?: ReadonlyMap<string, FileMark>; active?: string | null; header?: React.ReactElement | null }) {
   // Top-level folders start expanded, like the website.
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set(nodes.filter((n) => n.type !== "file").map((n) => n.path)));

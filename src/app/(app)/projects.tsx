@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, RefreshControl, TextInput, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { Archive, ChevronRight, GitBranch, GitFork, Lock, Plus, Search } from "lucide-react-native";
+import { Archive, GitBranch, GitFork, Lock, Plus, Search } from "lucide-react-native";
 import { NewRepoSheet } from "@/features/github/new-repo";
 import { onNewRepoRequest, takeNewRepoRequest } from "@/features/command/palette-store";
 import { rememberRepo } from "@/features/github/recent";
@@ -10,53 +11,43 @@ import { useSession } from "@/stores/session";
 import { projectPath } from "@/lib/nav";
 import { timeAgo } from "@/lib/utils";
 import type { RepoSummary } from "@/types/github";
-import { Badge, Btn, Card, EmptyState, ErrorState, Header, IconBtn, Row, Skeleton, T } from "@/ui/kit";
+import { Btn, Divider, EmptyState, ErrorState, Header, IconBtn, Row, Skeleton, T } from "@/ui/kit";
 import { GitHubIcon } from "@/ui/brand";
 import { FONT, RADIUS, useTheme } from "@/ui/theme";
 
 function RepoRow({ repo }: { repo: RepoSummary }) {
-  const { c } = useTheme();
+  const { c, a } = useTheme();
+  const meta = [repo.language, repo.pushedAt ? `Updated ${timeAgo(new Date(repo.pushedAt))}` : null, repo.fork ? "fork" : null, repo.archived ? "archived" : null, !repo.permissions.push ? "read-only" : null].filter(Boolean).join(" · ");
   return (
-    <Card onPress={() => router.push(projectPath(repo.owner, repo.name))} testID={`row-repo-${repo.owner}-${repo.name}`} style={{ flexDirection: "row", alignItems: "center", gap: 10, padding: 14 }}>
-      <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-        <Row gap={8}>
-          <T variant="h3" numberOfLines={1} style={{ flexShrink: 1 }}>
-            <T variant="body" color="mutedForeground">{repo.owner}/</T>
-            {repo.name}
-          </T>
-          {repo.private ? <Badge label="private" icon={Lock} /> : <Badge label="public" />}
-        </Row>
-        {repo.description ? <T variant="small" numberOfLines={2}>{repo.description}</T> : null}
-        <Row gap={10} style={{ flexWrap: "wrap" }}>
-          <Row gap={4}>
-            <GitBranch size={12} color={c.mutedForeground} />
-            <T variant="monoSmall">{repo.defaultBranch}</T>
-          </Row>
-          {repo.language ? <T variant="tiny">{repo.language}</T> : null}
-          {repo.pushedAt ? <T variant="tiny">Updated {timeAgo(new Date(repo.pushedAt))}</T> : null}
-          {repo.fork ? (
-            <Row gap={3}>
-              <GitFork size={11} color={c.mutedForeground} />
-              <T variant="tiny">fork</T>
-            </Row>
-          ) : null}
-          {repo.archived ? (
-            <Row gap={3}>
-              <Archive size={11} color={c.mutedForeground} />
-              <T variant="tiny">archived</T>
-            </Row>
-          ) : null}
-          {!repo.permissions.push ? <T variant="tiny">read-only</T> : null}
-        </Row>
-      </View>
-      <ChevronRight size={16} color={c.mutedForeground} />
-    </Card>
+    <Pressable
+      onPress={() => router.push(projectPath(repo.owner, repo.name))}
+      testID={`row-repo-${repo.owner}-${repo.name}`}
+      accessibilityRole="button"
+      accessibilityLabel={`${repo.owner}/${repo.name}${repo.private ? ", private" : ""}`}
+      android_ripple={{ color: a("foreground", 0.08) }}
+      style={({ pressed }) => ({ paddingVertical: 12, paddingHorizontal: 16, minHeight: 64, gap: 3, backgroundColor: pressed ? a("foreground", 0.05) : "transparent" })}
+    >
+      <Row gap={6}>
+        <T numberOfLines={1} style={{ flexShrink: 1, fontSize: 16, lineHeight: 22, fontFamily: FONT.semibold }}>{repo.name}</T>
+        {repo.private ? <Lock size={13} color={c.mutedForeground} accessibilityLabel="Private" /> : null}
+        {repo.fork ? <GitFork size={13} color={c.mutedForeground} accessibilityLabel="Fork" /> : null}
+        {repo.archived ? <Archive size={13} color={c.mutedForeground} accessibilityLabel="Archived" /> : null}
+      </Row>
+      {repo.description ? <T variant="small" numberOfLines={2}>{repo.description}</T> : null}
+      <Row gap={6} style={{ flexWrap: "wrap" }}>
+        <T variant="monoSmall" style={{ fontSize: 12 }}>{repo.owner}</T>
+        <GitBranch size={11} color={c.mutedForeground} />
+        <T variant="monoSmall" style={{ fontSize: 12 }}>{repo.defaultBranch}</T>
+        {meta ? <T variant="tiny">· {meta}</T> : null}
+      </Row>
+    </Pressable>
   );
 }
 
 export default function ProjectsScreen() {
   const { session } = useSession();
-  const { c } = useTheme();
+  const { c, a } = useTheme();
+  const insets = useSafeAreaInsets();
   const gh = session.mode === "github" ? session : null;
   const [creating, setCreating] = useState(() => takeNewRepoRequest());
   useEffect(() => onNewRepoRequest(() => takeNewRepoRequest() && setCreating(true)), []);
@@ -90,14 +81,10 @@ export default function ProjectsScreen() {
   const includePrivate = !!gh?.includePrivate;
 
   const header = (
-    <View style={{ gap: 12, marginBottom: 12 }}>
-      <View>
-        <T variant="label" color="primary" style={{ fontSize: 10 }}>Your codebase</T>
-        <T variant="small" style={{ marginTop: 4 }}>Open a repository and turn it into a focused Chrono workspace.</T>
-      </View>
-      <View style={{ flexDirection: "row", alignItems: "center", height: 46, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, paddingHorizontal: 12, gap: 8 }}>
+    <View style={{ gap: 10, marginBottom: 8, paddingHorizontal: 16 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", minHeight: 48, borderRadius: RADIUS.lg, backgroundColor: a("foreground", 0.06), paddingHorizontal: 14, gap: 10 }}>
         <Search size={16} color={c.mutedForeground} />
-        <TextInput
+        <TextInput disableFullscreenUI
           value={query}
           onChangeText={setQuery}
           placeholder="Search repositories"
@@ -106,11 +93,11 @@ export default function ProjectsScreen() {
           autoCorrect={false}
           clearButtonMode="while-editing"
           testID="input-search-projects"
-          style={{ flex: 1, color: c.foreground, fontFamily: FONT.regular, fontSize: 15 }}
+          style={{ flex: 1, color: c.foreground, fontFamily: FONT.regular, fontSize: 16, paddingVertical: 10 }}
         />
       </View>
       {status !== "loading" && repos.length ? (
-        <T variant="tiny" testID="text-repo-count">
+        <T variant="tiny" testID="text-repo-count" style={{ paddingHorizontal: 2 }}>
           {needle ? `${filtered.length} of ${repos.length} loaded` : `${repos.length}${hasNext ? "+" : ""} repositories`} · most recently pushed first
         </T>
       ) : null}
@@ -118,7 +105,7 @@ export default function ProjectsScreen() {
   );
 
   const footer = (
-    <View style={{ gap: 12, marginTop: 4 }}>
+    <View style={{ gap: 12, marginTop: 12, paddingHorizontal: 16 }}>
       {status === "error" && repos.length ? <ErrorState error={error} onRetry={() => load(pages.length + 1)} /> : null}
       {hasNext && status !== "error" ? <Btn label={status === "more" ? "Loading…" : "Load more"} variant="secondary" full disabled={status === "more"} onPress={() => load(pages.length + 1)} testID="button-load-more" /> : null}
       {!includePrivate && !repos.some((r) => r.private) && status !== "loading" ? (
@@ -131,14 +118,14 @@ export default function ProjectsScreen() {
 
   return (
     <>
-      <Header title="Projects" large right={gh ? <IconBtn icon={Plus} label="New repository" onPress={() => setCreating(true)} testID="button-new-repo" /> : null} />
+      <Header title="Projects" large menu right={gh ? <IconBtn icon={Plus} label="New repository" size={48} onPress={() => setCreating(true)} testID="button-new-repo" /> : null} />
       <FlatList
         style={{ flex: 1, backgroundColor: c.background }}
-        contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: 32 + insets.bottom, paddingLeft: insets.left, paddingRight: insets.right }}
         data={status === "loading" ? [] : filtered}
         keyExtractor={(r) => r.fullName}
         renderItem={({ item }) => <RepoRow repo={item} />}
-        ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+        ItemSeparatorComponent={() => <Divider style={{ marginLeft: 16 }} />}
         ListHeaderComponent={header}
         ListFooterComponent={footer}
         keyboardShouldPersistTaps="handled"
@@ -146,17 +133,17 @@ export default function ProjectsScreen() {
         refreshControl={<RefreshControl refreshing={status === "refreshing"} onRefresh={() => load(1, true)} tintColor={c.mutedForeground} />}
         ListEmptyComponent={
           status === "loading" ? (
-            <View style={{ gap: 8 }} accessibilityLabel="Loading repositories">
+            <View style={{ gap: 22, padding: 16 }} accessibilityLabel="Loading repositories">
               {[0, 1, 2, 3].map((i) => (
-                <Card key={i} style={{ gap: 8 }}>
+                <View key={i} style={{ gap: 8 }}>
                   <Skeleton height={16} width="50%" />
                   <Skeleton height={12} width="80%" />
                   <Skeleton height={12} width="33%" />
-                </Card>
+                </View>
               ))}
             </View>
           ) : status === "error" ? (
-            <ErrorState error={error} onRetry={() => load(1)} />
+            <View style={{ padding: 16 }}><ErrorState error={error} onRetry={() => load(1)} /></View>
           ) : repos.length === 0 ? (
             <EmptyState icon={() => <GitHubIcon size={20} color={c.mutedForeground} />} title="No repositories yet">
               Create one with “New repository” to get started.

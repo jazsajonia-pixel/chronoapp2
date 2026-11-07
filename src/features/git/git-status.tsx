@@ -153,9 +153,9 @@ export function GitStatus({ target, version, compact = false }: { target: GitTar
             <T variant="small" color="primary" onPress={commits.retry}>Retry</T>
           </T>
         ) : (
-          <View testID="list-commits" style={{ borderRadius: RADIUS.md, borderWidth: 1, borderColor: c.border, overflow: "hidden" }}>
+          <View testID="list-commits">
             {commits.data.commits.slice(0, compact ? 3 : undefined).map((cm, i) => (
-              <Pressable key={cm.sha} onPress={() => void Linking.openURL(cm.url)} style={({ pressed }) => ({ paddingHorizontal: 12, paddingVertical: 9, borderTopWidth: i ? 1 : 0, borderTopColor: c.border, backgroundColor: pressed ? c.surface2 : "transparent" })}>
+              <Pressable key={cm.sha} onPress={() => void Linking.openURL(cm.url)} style={({ pressed }) => ({ paddingVertical: 10, minHeight: 48, justifyContent: "center", borderTopWidth: i ? 1 : 0, borderTopColor: c.border, opacity: pressed ? 0.7 : 1 })}>
                 <Row gap={8}>
                   <T variant="monoSmall" color="primary">{short(cm.sha)}</T>
                   <T variant="small" color="foreground" numberOfLines={1} style={{ flex: 1 }}>{cm.message}</T>

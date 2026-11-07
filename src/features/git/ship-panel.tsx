@@ -9,7 +9,7 @@ import { githubApi } from "@/features/github/api";
 import { markTasksShipped, tasksForPaths } from "@/features/agent/store";
 import { branchNameError, generateCommitMessage, suggestBranchName } from "./message";
 import { saveLastShip, type ShipRecord } from "./ship-store";
-import { Badge, Btn, ConfirmSheet, Row, Switch, T, haptic } from "@/ui/kit";
+import { Btn, ConfirmSheet, Row, Switch, T, haptic } from "@/ui/kit";
 import { FONT, RADIUS, useTheme } from "@/ui/theme";
 
 /** Everything the Git tab needs to know about where changes can go. */
@@ -149,15 +149,15 @@ export function ShipPanel({ target, selected }: { target: GitTarget; selected: F
   const directDefault = mode === "current" && onDefault;
 
   return (
-    <View testID="ship-panel" style={{ borderRadius: RADIUS.lg, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, overflow: "hidden" }}>
-      <Row style={{ paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.border }}>
+    <View testID="ship-panel" style={{ borderTopWidth: 1, borderTopColor: c.border }}>
+      <Row style={{ paddingHorizontal: 2, paddingTop: 16, paddingBottom: 4 }}>
         <GitCommitHorizontal size={17} color={c.primary} />
         <T variant="h3" style={{ flex: 1 }}>Commit & push</T>
         <T variant="small" testID="text-selected-count">
           {selected.length} file{selected.length === 1 ? "" : "s"}
         </T>
       </Row>
-      <View style={{ padding: 14, gap: 14 }}>
+      <View style={{ paddingHorizontal: 2, paddingVertical: 12, gap: 14 }}>
         <View style={{ gap: 8 }} accessibilityRole="radiogroup" accessibilityLabel="Where should the commit go?">
           <T variant="label">Where should the commit go?</T>
           <Choice on={mode === "new"} onPress={() => setMode("new")} disabled={working} testID="radio-new-branch">
@@ -165,11 +165,11 @@ export function ShipPanel({ target, selected }: { target: GitTarget; selected: F
               <Radio on={mode === "new"} />
               <GitBranchPlus size={15} color={c.foreground} />
               <T weight="medium" style={{ flex: 1 }}>New branch</T>
-              <Badge label="Recommended" tone="primary" />
+              <T variant="small" color="primary">Recommended</T>
             </Row>
             {mode === "new" ? (
               <View style={{ gap: 6 }}>
-                <TextInput
+                <TextInput disableFullscreenUI
                   value={branchName}
                   onChangeText={(v) => {
                     nameEdited.current = true;
@@ -221,7 +221,7 @@ export function ShipPanel({ target, selected }: { target: GitTarget; selected: F
               testID="button-regenerate-message"
             />
           </Row>
-          <TextInput
+          <TextInput disableFullscreenUI
             value={message}
             onChangeText={(v) => {
               edited.current = true;
@@ -237,7 +237,7 @@ export function ShipPanel({ target, selected }: { target: GitTarget; selected: F
         </View>
 
         {prBase ? (
-          <Row gap={8} style={{ borderRadius: RADIUS.md, borderWidth: 1, borderColor: c.border, padding: 10 }}>
+          <Row gap={8} style={{ minHeight: 48 }}>
             <GitPullRequest size={15} color={c.mutedForeground} />
             <T variant="small" color="foreground" style={{ flex: 1 }}>
               Open a pull request into <T variant="monoSmall" color="foreground">{prBase}</T>

@@ -25,6 +25,8 @@ import { ThemeProvider, useTheme } from "@/ui/theme";
 import { ToastHost } from "@/ui/kit";
 import { ProbeHost } from "@/features/preview/probe-host";
 import { CommandPalette } from "@/features/command/command-palette";
+import { AppDrawer } from "@/features/shell/app-drawer";
+import { useDrawerOpen } from "@/features/shell/drawer-store";
 import { ErrorBoundary as AppErrorBoundary } from "@/components/error-boundary";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -35,6 +37,7 @@ export { AppErrorBoundary as ErrorBoundary };
 function Chrome() {
   const { c, dark } = useTheme();
   const pathname = usePathname();
+  const drawerOpen = useDrawerOpen();
   useEffect(() => setMonitoringRoute(pathname), [pathname]);
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(c.background).catch(() => {});
@@ -46,11 +49,15 @@ function Chrome() {
   return (
     <View style={{ flex: 1, backgroundColor: c.background }}>
       <StatusBar style={dark ? "light" : "dark"} />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.background }, animation: "slide_from_right" }}>
-        <Stack.Screen name="index" options={{ animation: "fade" }} />
-        <Stack.Screen name="(tabs)" options={{ animation: "fade" }} />
-      </Stack>
+      {/* While the drawer is open, screen readers stay inside it (the drawer used to be a Modal). */}
+      <View style={{ flex: 1 }} importantForAccessibility={drawerOpen ? "no-hide-descendants" : "auto"} accessibilityElementsHidden={drawerOpen}>
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.background }, animation: "slide_from_right" }}>
+          <Stack.Screen name="index" options={{ animation: "fade" }} />
+          <Stack.Screen name="(app)" options={{ animation: "fade" }} />
+        </Stack>
+      </View>
       <ProbeHost />
+      <AppDrawer />
       <CommandPalette />
       <ToastHost />
     </View>

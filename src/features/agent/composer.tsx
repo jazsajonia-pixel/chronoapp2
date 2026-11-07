@@ -207,7 +207,7 @@ export function Composer({
             ))}
           </ScrollView>
         ) : null}
-        <TextInput
+        <TextInput disableFullscreenUI
           ref={ref}
           value={text}
           onChangeText={setText}

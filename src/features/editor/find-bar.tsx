@@ -50,7 +50,7 @@ export function FindBar({ editor, count, onClose, readOnly }: { editor: React.Re
       <Row gap={2}>
         {!readOnly ? <IconBtn icon={Replace} label={showReplace ? "Hide replace" : "Show replace"} size={36} color={showReplace ? "primary" : undefined} onPress={() => setShowReplace((s) => !s)} /> : null}
         <View style={{ flex: 1, flexDirection: "row", alignItems: "center" }}>
-          <TextInput
+          <TextInput disableFullscreenUI
             autoFocus
             value={search}
             onChangeText={setSearch}
@@ -79,7 +79,7 @@ export function FindBar({ editor, count, onClose, readOnly }: { editor: React.Re
       </Row>
       {showReplace && !readOnly ? (
         <Row gap={6} style={{ paddingHorizontal: 4 }}>
-          <TextInput value={replace} onChangeText={setReplace} onSubmitEditing={() => editor.current?.replace()} blurOnSubmit={false} placeholder="Replace" placeholderTextColor={c.mutedForeground} accessibilityLabel="Replace with" autoCapitalize="none" autoCorrect={false} spellCheck={false} testID="input-replace" style={input} />
+          <TextInput disableFullscreenUI value={replace} onChangeText={setReplace} onSubmitEditing={() => editor.current?.replace()} blurOnSubmit={false} placeholder="Replace" placeholderTextColor={c.mutedForeground} accessibilityLabel="Replace with" autoCapitalize="none" autoCorrect={false} spellCheck={false} testID="input-replace" style={input} />
           <Pressable disabled={!count.total} onPress={() => editor.current?.replace()} testID="button-replace" style={{ height: 38, paddingHorizontal: 12, borderRadius: RADIUS.md, borderWidth: 1, borderColor: c.border, justifyContent: "center", opacity: count.total ? 1 : 0.4 }}>
             <T variant="small" color="foreground" weight="medium">Replace</T>
           </Pressable>

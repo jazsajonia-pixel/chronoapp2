@@ -1,10 +1,9 @@
 import { router } from "expo-router";
-import { Sparkles, ChevronRight } from "lucide-react-native";
+import { ChevronRight, Sparkles } from "lucide-react-native";
+import { useTheme } from "@/ui/theme";
 import { PROVIDERS } from "@/lib/ai-catalog";
 import { useProviders } from "./use-providers";
-import { Card, Row, T } from "@/ui/kit";
-import { useTheme } from "@/ui/theme";
-import { View } from "react-native";
+import { ListRow } from "@/ui/kit";
 
 /** One-line summary of the default provider, linking to AI provider settings. */
 export function ActiveProviderLink() {
@@ -25,16 +24,5 @@ export function ActiveProviderLink() {
     line = def ? (def.label === PROVIDERS[def.kind].name ? def.label : `${def.label} · ${PROVIDERS[def.kind].name}`) : "No provider yet";
     sub = def ? `${def.model} · ${enabled} enabled` : "Add an OpenAI, Anthropic, Gemini, OpenRouter or compatible key";
   }
-  return (
-    <Card onPress={() => router.push("/ai-providers")} testID="link-ai-providers" style={{ padding: 14 }}>
-      <Row gap={12}>
-        <Sparkles size={18} color={c.primary} />
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <T variant="h3" numberOfLines={1}>{line}</T>
-          <T variant="small" numberOfLines={2} testID="text-active-provider">{sub}</T>
-        </View>
-        <ChevronRight size={16} color={c.mutedForeground} />
-      </Row>
-    </Card>
-  );
+  return <ListRow icon={Sparkles} title={line} subtitle={sub} onPress={() => router.push("/ai-providers")} right={<ChevronRight size={16} color={c.mutedForeground} />} testID="link-ai-providers" subtitleTestID="text-active-provider" />;
 }

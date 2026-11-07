@@ -132,12 +132,12 @@ export function CommandPalette() {
 
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={closeCommandPalette} statusBarTranslucent>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
         <Pressable onPress={closeCommandPalette} accessibilityLabel="Close search" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.55)" }} />
         <View testID="command-palette" accessibilityViewIsModal style={{ marginTop: insets.top + 12, marginHorizontal: 12, maxHeight: "80%", borderRadius: RADIUS.xl, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, overflow: "hidden", shadowColor: "#000", shadowOpacity: 0.35, shadowRadius: 20, elevation: 12 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, height: 54, borderBottomWidth: 1, borderBottomColor: c.border }}>
             <Search size={18} color={c.mutedForeground} />
-            <TextInput
+            <TextInput disableFullscreenUI
               autoFocus
               value={query}
               onChangeText={setQuery}

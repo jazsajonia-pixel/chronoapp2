@@ -168,7 +168,7 @@ export function ProviderForm({ open, onOpenChange, editing, storageNote, onSaved
           ) : null}
         </Row>
         <View style={{ flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: c.border, borderRadius: RADIUS.md, backgroundColor: c.background, paddingLeft: 12 }}>
-          <TextInput
+          <TextInput disableFullscreenUI
             value={apiKey}
             onChangeText={setApiKey}
             placeholder={editing ? "Keep the saved key" : meta.keyPlaceholder}

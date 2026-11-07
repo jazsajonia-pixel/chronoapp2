@@ -16,18 +16,20 @@ import type { WorkspaceTab } from "@/lib/nav";
 import { PROJECT_KIND_LABEL, detectProjectKindFromPaths } from "@/lib/tree";
 import { timeAgo } from "@/lib/utils";
 import type { ProjectRef } from "@/types/workspace";
-import { Badge, Btn, Card as KitCard, Row, T } from "@/ui/kit";
+import { Btn, Row, T } from "@/ui/kit";
 import { RADIUS, useTheme } from "@/ui/theme";
 
-function Card({ title, action, children, testID }: { title: string; action?: ReactNode; children: ReactNode; testID: string }) {
+/** A flat overview section: label row, content, hairline between sections (no card chrome). */
+function Card({ title, action, children, testID, first }: { title: string; action?: ReactNode; children: ReactNode; testID: string; first?: boolean }) {
+  const { c } = useTheme();
   return (
-    <KitCard testID={testID} style={{ gap: 10 }}>
+    <View testID={testID} style={{ gap: 10, paddingVertical: 18, borderTopWidth: first ? 0 : 1, borderTopColor: c.border }}>
       <Row style={{ justifyContent: "space-between", minHeight: 28 }}>
         <T variant="label">{title}</T>
         {action}
       </Row>
       {children}
-    </KitCard>
+    </View>
   );
 }
 
@@ -66,18 +68,16 @@ export function ProjectDashboard({ project, target, syncedAt, refreshing = false
   const repoUrl = `https://github.com/${project.owner}/${project.name}`;
 
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 32 }} testID="project-dashboard">
-      <Card title="Repository" testID="card-repository" action={<LinkText label="GitHub" icon={ExternalLink} onPress={() => void Linking.openURL(repoUrl)} />}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 32 }} testID="project-dashboard">
+      <Card first title="Repository" testID="card-repository" action={<LinkText label="GitHub" icon={ExternalLink} onPress={() => void Linking.openURL(repoUrl)} />}>
         <T variant="mono" color="foreground" style={{ fontSize: 15 }}>
           {project.owner}/{project.name}
         </T>
         {project.description ? <T variant="small">{project.description}</T> : null}
-        <Row gap={6} style={{ flexWrap: "wrap" }}>
-          <Badge label={project.visibility} />
-          <Badge label={PROJECT_KIND_LABEL[kind]} />
-          <Badge label={`${ws.paths.length} file${ws.paths.length === 1 ? "" : "s"}`} />
-          {ws.source.truncated ? <Badge label="Partial tree" tone="warning" /> : null}
-        </Row>
+        <T variant="small">
+          {project.visibility === "private" ? "Private" : "Public"} · {PROJECT_KIND_LABEL[kind]} · {ws.paths.length} file{ws.paths.length === 1 ? "" : "s"}
+          {ws.source.truncated ? <T variant="small" color="warning"> · Partial tree</T> : null}
+        </T>
       </Card>
 
       <Card title="Branch & sync" testID="card-branch" action={onRefresh ? <Btn label="Sync" icon={RefreshCw} variant="ghost" size="sm" loading={refreshing} disabled={!online} onPress={onRefresh} testID="button-refresh-tree" /> : null}>
@@ -121,7 +121,9 @@ export function ProjectDashboard({ project, target, syncedAt, refreshing = false
       </Card>
 
       <Card title="AI" testID="card-ai">
-        <ActiveProviderLink />
+        <View style={{ marginHorizontal: -16 }}>
+          <ActiveProviderLink />
+        </View>
         <Row style={{ justifyContent: "space-between", marginTop: 4 }}>
           <T variant="h3" style={{ fontSize: 13 }}>Recent tasks</T>
           <Row gap={4}>
@@ -134,7 +136,7 @@ export function ProjectDashboard({ project, target, syncedAt, refreshing = false
             {tasks.map((t) => (
               <Row key={t.ref.task.id} gap={8}>
                 <T variant="small" color="foreground" numberOfLines={1} style={{ flex: 1 }}>{t.ref.task.title}</T>
-                <Badge label={HISTORY_STATUS_LABEL[t.status]} tone={STATUS_TONE[t.status]} />
+                <T variant="tiny" weight="medium" color={STATUS_TONE[t.status] === "muted" ? "mutedForeground" : STATUS_TONE[t.status]}>{HISTORY_STATUS_LABEL[t.status]}</T>
               </Row>
             ))}
           </View>

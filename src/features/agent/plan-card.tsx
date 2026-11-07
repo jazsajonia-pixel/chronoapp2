@@ -42,7 +42,7 @@ export function PlanCard({ call, result, awaiting, onApprove, onRevise }: { call
       {awaiting ? (
         revising ? (
           <View style={{ gap: 8 }}>
-            <TextInput autoFocus value={feedback} onChangeText={setFeedback} multiline placeholder="What should change in the plan?" placeholderTextColor={c.mutedForeground} testID="input-plan-feedback" textAlignVertical="top" style={{ minHeight: 76, borderRadius: RADIUS.md, borderWidth: 1, borderColor: c.border, backgroundColor: c.background, padding: 10, color: c.foreground, fontFamily: FONT.regular, fontSize: 14 }} />
+            <TextInput disableFullscreenUI autoFocus value={feedback} onChangeText={setFeedback} multiline placeholder="What should change in the plan?" placeholderTextColor={c.mutedForeground} testID="input-plan-feedback" textAlignVertical="top" style={{ minHeight: 76, borderRadius: RADIUS.md, borderWidth: 1, borderColor: c.border, backgroundColor: c.background, padding: 10, color: c.foreground, fontFamily: FONT.regular, fontSize: 14 }} />
             <Row>
               <Btn label="Cancel" variant="secondary" onPress={() => setRevising(false)} style={{ flex: 1 }} />
               <Btn label="Send" disabled={!feedback.trim()} onPress={() => feedback.trim() && onRevise(feedback.trim())} style={{ flex: 1 }} testID="button-send-plan-feedback" />
