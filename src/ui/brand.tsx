@@ -1,52 +1,16 @@
-import { View } from "react-native";
-import Svg, { Circle, Path } from "react-native-svg";
+import { Image, View } from "react-native";
+import Svg, { Path } from "react-native-svg";
 import { T } from "./kit";
-import { useTheme } from "./theme";
 
-/**
- * Chrono mark: a "C" drawn as a clock dial, with one hand pointing out through the opening.
- * Flat, two colours, no gradients. Source of truth: assets/brand/chrono-mark.svg, which
- * scripts/make-icons.py turns into the app icon, adaptive icon layers, splash and favicon.
- */
-export const MARK_PATHS = {
-  ring: "M50.72 52.35A22 22 0 1 1 50.72 19.65",
-  hand: "M36 36L45.85 28.30",
-} as const;
-
-/** Brand colours. `dark` matches the launcher icon and splash; `light` is for light surfaces. */
-export const MARK_COLORS = {
-  dark: { ring: "#2DBDFB", hand: "#5EEAD4" },
-  light: { ring: "#0A6BEB", hand: "#0D9488" },
-} as const;
-
-/** The dial ring only (used under an animated hand on the launch screen). */
-export function MarkRing({ size, color }: { size: number; color: string }) {
+/** The exact gradient mark from the supplied brand reference. */
+export function LogoMark({ size = 32 }: { size?: number; tone?: "dark" | "light" }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 72 72">
-      <Path d={MARK_PATHS.ring} fill="none" stroke={color} strokeWidth={10} />
-    </Svg>
-  );
-}
-
-/** The hand and hub only. Rotating this view about its centre turns the hand around the dial. */
-export function MarkHand({ size, color }: { size: number; color: string }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 72 72">
-      <Path d={MARK_PATHS.hand} fill="none" stroke={color} strokeWidth={5.5} strokeLinecap="round" />
-      <Circle cx="36" cy="36" r="5" fill={color} />
-    </Svg>
-  );
-}
-
-export function LogoMark({ size = 32, tone }: { size?: number; tone?: "dark" | "light" }) {
-  const { dark } = useTheme();
-  const m = MARK_COLORS[tone ?? (dark ? "dark" : "light")];
-  return (
-    <Svg width={size} height={size} viewBox="0 0 72 72" accessibilityLabel="Chrono">
-      <Path d={MARK_PATHS.ring} fill="none" stroke={m.ring} strokeWidth={10} />
-      <Path d={MARK_PATHS.hand} fill="none" stroke={m.hand} strokeWidth={5.5} strokeLinecap="round" />
-      <Circle cx="36" cy="36" r="5" fill={m.hand} />
-    </Svg>
+    <Image
+      source={require("../../assets/brand/chrono-symbol.png")}
+      style={{ width: size, height: size * (142 / 198) }}
+      resizeMode="contain"
+      accessibilityLabel="Chrono"
+    />
   );
 }
 
