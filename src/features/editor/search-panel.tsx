@@ -61,7 +61,7 @@ export function SearchPanel({ onBack, onOpen }: { onBack: () => void; onOpen: (p
       <View style={{ paddingHorizontal: 8, paddingVertical: 8, gap: 8, borderBottomWidth: 1, borderBottomColor: c.border }}>
         <Row gap={4}>
           <IconBtn icon={ChevronLeft} label="Back to files" onPress={onBack} testID="button-search-back" />
-          <TextInput
+          <TextInput disableFullscreenUI
             autoFocus
             value={query}
             onChangeText={setQuery}

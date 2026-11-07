@@ -1,9 +1,10 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
-import { router } from "expo-router";
+import { ActivityIndicator, Keyboard, Pressable, ScrollView, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
 import { CheckCircle2, ChevronDown, Circle, Clock3, History, ImageIcon, KeyRound, Paperclip, Plus, RotateCw, Sparkles, Trash2, XCircle } from "lucide-react-native";
 import { ShippedNote } from "@/features/git/shipped-note";
 import { useOnline } from "@/hooks/use-online";
+import { useKeyboardCompact, useKeyboardVisible } from "@/hooks/use-keyboard-visible";
 import { useProviders } from "@/features/ai/use-providers";
 import { useWorkspace } from "@/features/workspace/context";
 import { AppError, isErrorCode } from "@/lib/errors";
@@ -235,6 +236,21 @@ export function AgentPanel({ project, onTab }: { project: AgentProject; active?:
   useEffect(() => {
     if (following.current) setTimeout(() => scroller.current?.scrollToEnd({ animated: true }), 50);
   }, [size]);
+  // Keep the latest message in view when the keyboard takes space from the conversation.
+  useEffect(() => {
+    const sub = Keyboard.addListener("keyboardDidShow", () => {
+      if (following.current) scroller.current?.scrollToEnd({ animated: true });
+    });
+    return () => sub.remove();
+  }, []);
+  // Drawer / Chats links open a specific task (`task=<id>`) or a fresh chat (`task=new-<nonce>`).
+  const { task: taskParam } = useLocalSearchParams<{ task?: string }>();
+  useEffect(() => {
+    if (typeof taskParam !== "string" || !taskParam) return;
+    following.current = true;
+    if (taskParam.startsWith("new")) agent.startNew();
+    else if (taskParam !== agent.task?.id) agent.selectTask(taskParam);
+  }, [taskParam]); // eslint-disable-line react-hooks/exhaustive-deps
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
     following.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 96;
@@ -278,31 +294,31 @@ export function AgentPanel({ project, onTab }: { project: AgentProject; active?:
       initialText={prefill?.text}
     />
   );
+  // Landscape + keyboard leaves ~140dp: give it to the conversation and composer.
+  const compact = useKeyboardCompact();
+  const keyboardShown = useKeyboardVisible();
   const welcome = !task && !needsProvider && providers.state.status !== "error";
   const storageNote = !agent.storageOk ? <T variant="tiny" color="warning" style={{ textAlign: "center" }}>Device storage is full — task history won't survive a restart.</T> : null;
 
   return (
     <View style={{ flex: 1 }} testID="agent-panel">
-      <Row gap={2} style={{ paddingLeft: 12, paddingRight: 4, minHeight: 46, borderBottomWidth: 1, borderBottomColor: c.border }}>
-        <Pressable onPress={() => router.push("/ai-providers")} testID="link-agent-provider" style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 6, minHeight: 40 }}>
-          <Sparkles size={14} color={c.primary} />
+      {compact ? null : <Row gap={2} style={{ paddingLeft: 12, paddingRight: 4, minHeight: 48 }}>
+        <Pressable onPress={() => router.push("/ai-providers")} testID="link-agent-provider" accessibilityRole="button" accessibilityLabel={`AI provider: ${providerLabel}. Change provider`} style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 6, minHeight: 44 }}>
           <T variant="small" numberOfLines={1} style={{ flexShrink: 1 }}>{providerLabel}</T>
+          <ChevronDown size={14} color={c.mutedForeground} />
         </Pressable>
-        <IconBtn icon={History} label="Task history" onPress={() => setHistoryOpen(true)} testID="button-agent-history" />
-        <IconBtn icon={Plus} label="New task" onPress={agent.startNew} disabled={!task} testID="button-new-task" />
-      </Row>
+        <IconBtn icon={History} label="Task history" size={44} onPress={() => setHistoryOpen(true)} testID="button-agent-history" />
+        <IconBtn icon={Plus} label="New task" size={44} onPress={agent.startNew} disabled={!task} testID="button-new-task" />
+      </Row>}
       {welcome ? (
-        <ScrollView testID="agent-scroll" keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: "center", paddingVertical: 24, gap: 18 }}>
-          <View style={{ alignItems: "center", gap: 10, paddingHorizontal: 24 }}>
-            <View style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: a("primary", 0.12), alignItems: "center", justifyContent: "center" }}>
-              <Sparkles size={24} color={c.primary} />
-            </View>
-            <T variant="h2" style={{ textAlign: "center" }}>Ask about {project.repo}</T>
-            <T variant="small" style={{ textAlign: "center", lineHeight: 20 }}>Ask answers questions. Agent inspects the repo, shows a plan, and proposes edits you review as diffs — nothing reaches GitHub until you commit.</T>
-          </View>
+        <>
+          <ScrollView testID="agent-scroll" keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end", paddingHorizontal: 20, paddingVertical: 24, gap: 10 }}>
+            <T variant="h2">Ask about {project.repo}</T>
+            {keyboardShown ? null : <T variant="small" style={{ lineHeight: 20, maxWidth: 520 }}>Ask answers questions. Agent inspects the repo, shows a plan, and proposes edits you review as diffs — nothing reaches GitHub until you commit.</T>}
+            {storageNote}
+          </ScrollView>
           {composer}
-          {storageNote}
-        </ScrollView>
+        </>
       ) : (
         <>
           <ScrollView ref={scroller} onScroll={onScroll} scrollEventThrottle={64} testID="agent-scroll" keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, gap: 14, flexGrow: 1 }}>
@@ -320,7 +336,7 @@ export function AgentPanel({ project, onTab }: { project: AgentProject; active?:
                 {task.shipped ? <ShippedNote info={task.shipped} /> : null}
                 {task.provider && task.status === "done" ? (
                   <T variant="tiny">
-                    {task.provider.label} · {task.provider.model}
+                    Answered by {task.provider.label} · {task.provider.model}
                     {task.usage.inputTokens ? ` · ${task.usage.inputTokens + task.usage.outputTokens} tokens` : ""}
                   </T>
                 ) : null}
@@ -328,7 +344,7 @@ export function AgentPanel({ project, onTab }: { project: AgentProject; active?:
             ) : null}
             {storageNote}
           </ScrollView>
-          <View style={{ borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.background, paddingTop: task && Object.keys(task.proposal).length ? 8 : 0 }}>
+          <View style={{ backgroundColor: c.background, paddingTop: task && Object.keys(task.proposal).length ? 8 : 0 }}>
             {task ? (
               <View style={{ paddingHorizontal: 12 }}>
                 <ProposalSummary proposal={task.proposal} onReview={() => setReviewOpen(true)} onPreview={() => onTab("preview")} />

@@ -53,7 +53,7 @@ export default function HistoryScreen() {
             <View style={{ gap: 10, marginBottom: 4 }}>
               <View style={{ flexDirection: "row", alignItems: "center", height: 44, borderRadius: RADIUS.md, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, paddingHorizontal: 12, gap: 8 }}>
                 <Search size={16} color={c.mutedForeground} />
-                <TextInput value={query} onChangeText={setQuery} placeholder="Search prompts, files, branches" placeholderTextColor={c.mutedForeground} autoCapitalize="none" autoCorrect={false} testID="input-search-history" style={{ flex: 1, color: c.foreground, fontFamily: FONT.regular, fontSize: 15 }} />
+                <TextInput disableFullscreenUI value={query} onChangeText={setQuery} placeholder="Search prompts, files, branches" placeholderTextColor={c.mutedForeground} autoCapitalize="none" autoCorrect={false} testID="input-search-history" style={{ flex: 1, color: c.foreground, fontFamily: FONT.regular, fontSize: 15 }} />
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
                 {STATUSES.map((s) => (

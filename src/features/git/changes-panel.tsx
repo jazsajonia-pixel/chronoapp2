@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import { AlertTriangle, Check, ChevronRight, Download, FilePen, RotateCcw, ShieldAlert, GitCommitHorizontal } from "lucide-react-native";
+import { AlertTriangle, Check, ChevronRight, Download, FilePen, RotateCcw, ShieldAlert } from "lucide-react-native";
 import { useWorkspace } from "@/features/workspace/context";
 import type { FileChange } from "@/features/workspace/model";
 import { diffChange } from "./diff";
@@ -8,7 +8,7 @@ import { DiffView } from "./diff-view";
 import { ShipPanel, type GitTarget } from "./ship-panel";
 import { downloadText, patchFileName, toPatch } from "./patch";
 import { GitStatus } from "./git-status";
-import { Btn, ConfirmSheet, EmptyState, IconBtn, Row, T, haptic, toast } from "@/ui/kit";
+import { Btn, ConfirmSheet, IconBtn, Row, T, haptic, toast } from "@/ui/kit";
 import { FONT, RADIUS, useTheme, type ColorName } from "@/ui/theme";
 
 const STATUS: Record<FileChange["status"], { letter: string; color: ColorName; label: string }> = {
@@ -34,7 +34,7 @@ function ChangeRow({ change, onDiscard, onOpen, selected, onToggle, first }: { c
   const slash = change.path.lastIndexOf("/");
   return (
     <View testID={`change-${change.path}`} style={{ borderTopWidth: first ? 0 : 1, borderTopColor: c.border }}>
-      <Row gap={6} style={{ paddingLeft: 12, paddingRight: 4, minHeight: 52 }}>
+      <Row gap={6} style={{ paddingLeft: 16, paddingRight: 8, minHeight: 52 }}>
         <Checkbox on={selected} onPress={onToggle} label={`Include ${change.path} in the commit`} testID={`checkbox-${change.path}`} />
         <Pressable onPress={() => setOpen((o) => !o)} accessibilityState={{ expanded: open }} style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8, minHeight: 52, paddingLeft: 4 }}>
           <View style={{ transform: [{ rotate: open ? "90deg" : "0deg" }] }}>
@@ -108,8 +108,9 @@ export function ChangesPanel({ target, onEdit, version = 0 }: { target: GitTarge
       {!ws.storageOk ? <Note tone="danger" icon={AlertTriangle} title="Changes aren't being saved on this device.">Device storage is full or unavailable — don't close the app.</Note> : null}
 
       {ws.changes.length === 0 ? (
-        <View style={{ borderRadius: RADIUS.lg, borderWidth: 1, borderColor: c.border, borderStyle: "dashed" }}>
-          <EmptyState icon={GitCommitHorizontal} title="Working tree clean">{`On ${branch}. Edit a file and save it to see the diff here.`}</EmptyState>
+        <View testID="text-tree-clean" style={{ gap: 2, paddingVertical: 4 }}>
+          <T style={{ fontSize: 17, lineHeight: 23, fontFamily: FONT.semibold }}>Working tree clean</T>
+          <T variant="small">{`On ${branch}. Edit a file and save it to see the diff here.`}</T>
         </View>
       ) : (
         <View style={{ gap: 8 }}>
@@ -121,7 +122,7 @@ export function ChangesPanel({ target, onEdit, version = 0 }: { target: GitTarge
             <Btn label={allSelected ? "None" : "All"} variant="ghost" size="sm" onPress={() => setExcluded(allSelected ? new Set(ws.changes.map((x) => x.path)) : new Set())} testID="button-toggle-all" />
             <Btn label="Discard all" variant="ghost" size="sm" onPress={() => setDiscard("all")} testID="button-discard-all" />
           </Row>
-          <View style={{ borderRadius: RADIUS.lg, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, overflow: "hidden" }}>
+          <View style={{ marginHorizontal: -16, borderTopWidth: 1, borderBottomWidth: 1, borderColor: c.border }}>
             {ws.changes.map((x, i) => (
               <ChangeRow key={x.path} first={i === 0} change={x} selected={!excluded.has(x.path)} onToggle={() => toggle(x.path)} onDiscard={() => setDiscard(x.path)} onOpen={x.status === "deleted" ? undefined : () => onEdit(x.path)} />
             ))}

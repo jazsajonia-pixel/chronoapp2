@@ -11,6 +11,7 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
   type PressableProps,
   type StyleProp,
   type TextInputProps,
@@ -20,7 +21,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import { AlertTriangle, ChevronLeft, RotateCw, X, type LucideProps } from "lucide-react-native";
+import { AlertTriangle, ChevronLeft, Menu as MenuIcon, RotateCw, X, type LucideProps } from "lucide-react-native";
+import { openDrawer } from "@/features/shell/drawer-store";
 import { router } from "expo-router";
 import { Image } from "expo-image";
 import { describeError } from "@/lib/errors";
@@ -39,7 +41,7 @@ export const haptic = {
 type Variant = "display" | "title" | "h2" | "h3" | "body" | "small" | "tiny" | "mono" | "monoSmall" | "label";
 const VARIANT: Record<Variant, TextStyle> = {
   display: { fontSize: 40, lineHeight: 44, fontFamily: FONT.semibold, letterSpacing: -1.2 },
-  title: { fontSize: 24, lineHeight: 30, fontFamily: FONT.semibold, letterSpacing: -0.5 },
+  title: { fontSize: 22, lineHeight: 28, fontFamily: FONT.semibold, letterSpacing: -0.4 },
   h2: { fontSize: 18, lineHeight: 24, fontFamily: FONT.semibold, letterSpacing: -0.2 },
   h3: { fontSize: 15, lineHeight: 20, fontFamily: FONT.semibold },
   body: { fontSize: 15, lineHeight: 22, fontFamily: FONT.regular },
@@ -47,7 +49,7 @@ const VARIANT: Record<Variant, TextStyle> = {
   tiny: { fontSize: 11, lineHeight: 15, fontFamily: FONT.regular },
   mono: { fontSize: 13, lineHeight: 19, fontFamily: FONT.mono },
   monoSmall: { fontSize: 11, lineHeight: 15, fontFamily: FONT.mono },
-  label: { fontSize: 11, lineHeight: 14, fontFamily: FONT.semibold, letterSpacing: 0.8, textTransform: "uppercase" },
+  label: { fontSize: 13, lineHeight: 18, fontFamily: FONT.medium },
 };
 
 export function T({
@@ -244,6 +246,7 @@ export function ListRow({
   onPress,
   danger,
   testID,
+  subtitleTestID,
 }: {
   icon?: Icon;
   title: string;
@@ -252,6 +255,7 @@ export function ListRow({
   onPress?: () => void;
   danger?: boolean;
   testID?: string;
+  subtitleTestID?: string;
 }) {
   const { c, a } = useTheme();
   return (
@@ -262,19 +266,16 @@ export function ListRow({
         haptic.tap();
         onPress?.();
       }}
-      style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, paddingHorizontal: 14, backgroundColor: pressed ? a("foreground", 0.05) : "transparent" })}
+      android_ripple={onPress ? { color: a("foreground", 0.08) } : undefined}
+      style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: 14, minHeight: 52, paddingVertical: 10, paddingHorizontal: 16, backgroundColor: pressed ? a("foreground", 0.05) : "transparent" })}
     >
-      {IconC ? (
-        <View style={{ width: 34, height: 34, borderRadius: RADIUS.md, backgroundColor: danger ? a("danger", 0.12) : c.surface2, alignItems: "center", justifyContent: "center" }}>
-          <IconC size={17} color={danger ? c.danger : c.foreground} />
-        </View>
-      ) : null}
+      {IconC ? <IconC size={19} color={danger ? c.danger : c.mutedForeground} /> : null}
       <View style={{ flex: 1, minWidth: 0 }}>
-        <T variant="h3" numberOfLines={1} style={danger ? { color: c.danger } : undefined}>
+        <T numberOfLines={1} style={[{ fontSize: 15, lineHeight: 21, fontFamily: FONT.medium }, danger ? { color: c.danger } : null]}>
           {title}
         </T>
         {subtitle ? (
-          <T variant="small" numberOfLines={2}>
+          <T variant="small" numberOfLines={2} testID={subtitleTestID}>
             {subtitle}
           </T>
         ) : null}
@@ -286,9 +287,9 @@ export function ListRow({
 
 export function Section({ title, action, children, style }: { title?: string; action?: ReactNode; children: ReactNode; style?: StyleProp<ViewStyle> }) {
   return (
-    <View style={[{ gap: 10 }, style]}>
+    <View style={[{ gap: 8 }, style]}>
       {title || action ? (
-        <Row style={{ justifyContent: "space-between", paddingHorizontal: 2 }}>
+        <Row style={{ justifyContent: "space-between", paddingHorizontal: 2, minHeight: 24 }}>
           {title ? <T variant="label">{title}</T> : <View />}
           {action}
         </Row>
@@ -306,7 +307,7 @@ export function Field({ label, hint, error, style, inputStyle, mono, ...rest }: 
   return (
     <View style={[{ gap: 6 }, style as ViewStyle]}>
       {label ? <T variant="small" weight="medium" color="foreground">{label}</T> : null}
-      <TextInput
+      <TextInput disableFullscreenUI
         placeholderTextColor={c.mutedForeground}
         autoCapitalize="none"
         autoCorrect={false}
@@ -477,7 +478,11 @@ export function Avatar({ uri, size = 32 }: { uri?: string | null; size?: number 
 
 export function Screen({ children, scroll = true, padded = true, refresh, contentStyle, testID }: { children: ReactNode; scroll?: boolean; padded?: boolean; refresh?: ReactNode; contentStyle?: StyleProp<ViewStyle>; testID?: string }) {
   const { c } = useTheme();
-  const inner = [{ padding: padded ? 16 : 0, gap: 16, paddingBottom: 32 }, contentStyle];
+  const insets = useSafeAreaInsets();
+  // Side insets keep content clear of the camera cutout in landscape; the gutter widens on large screens.
+  const { width } = useWindowDimensions();
+  const gutter = padded ? (width >= 720 ? 28 : 16) : 0;
+  const inner = [{ paddingTop: padded ? 8 : 0, paddingLeft: gutter + insets.left, paddingRight: gutter + insets.right, gap: 24, paddingBottom: insets.bottom + 32 }, contentStyle];
   if (!scroll) return <View testID={testID} style={[{ flex: 1, backgroundColor: c.background }, ...inner]}>{children}</View>;
   return (
     <ScrollView
@@ -493,12 +498,13 @@ export function Screen({ children, scroll = true, padded = true, refresh, conten
   );
 }
 
-export function Header({ title, subtitle, back, right, large }: { title: string; subtitle?: string; back?: boolean | (() => void); right?: ReactNode; large?: boolean }) {
+export function Header({ title, subtitle, back, right, large, menu }: { title: string; subtitle?: string; back?: boolean | (() => void); right?: ReactNode; large?: boolean; menu?: boolean }) {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   return (
-    <View style={{ paddingTop: insets.top, backgroundColor: c.background, borderBottomWidth: large ? 0 : 1, borderBottomColor: c.border }}>
-      <Row style={{ minHeight: 52, paddingHorizontal: back ? 6 : 16, paddingRight: 8 }} gap={4}>
+    <View style={{ paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right, backgroundColor: c.background, borderBottomWidth: large ? 0 : 1, borderBottomColor: c.border }}>
+      <Row style={{ minHeight: 56, paddingHorizontal: back || menu ? 4 : 16, paddingRight: 4 }} gap={4}>
+        {menu ? <IconBtn icon={MenuIcon} label="Open menu" size={48} onPress={openDrawer} testID="button-open-menu" /> : null}
         {back ? <IconBtn icon={ChevronLeft} label="Back" onPress={typeof back === "function" ? back : () => (router.canGoBack() ? router.back() : router.replace("/home"))} /> : null}
         <View style={{ flex: 1, minWidth: 0 }}>
           <T variant={large ? "title" : "h2"} numberOfLines={1}>{title}</T>
@@ -517,7 +523,7 @@ export function Sheet({ open, onClose, title, description, children, footer, ful
   const insets = useSafeAreaInsets();
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
         <Pressable accessibilityLabel="Close" onPress={onClose} style={{ flex: 1, backgroundColor: a("background", 0.6) }} />
         <View
           style={{

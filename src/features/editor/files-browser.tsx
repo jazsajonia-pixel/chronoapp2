@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { FlatList, Pressable, Text, TextInput, View } from "react-native";
-import { AlertTriangle, FilePlus2, FolderOpen, Search, TextSearch, Trash2, X } from "lucide-react-native";
+import { AlertTriangle, FilePlus2, FolderOpen, Search, TextSearch, X } from "lucide-react-native";
 import { FileTree, Mark } from "./file-tree";
 import { buildTree } from "@/lib/tree";
 import { useWorkspace } from "@/features/workspace/context";
@@ -26,7 +26,7 @@ export function FilesBrowser({ onOpen, onSearch, autoFocus = false }: { onOpen: 
       <Row gap={4} style={{ paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.border }}>
         <View style={{ flex: 1, flexDirection: "row", alignItems: "center", height: 40, borderRadius: RADIUS.md, backgroundColor: c.muted, paddingHorizontal: 10, gap: 8 }}>
           <Search size={15} color={c.mutedForeground} />
-          <TextInput
+          <TextInput disableFullscreenUI
             value={filter}
             onChangeText={setFilter}
             autoFocus={autoFocus}
@@ -66,13 +66,12 @@ export function FilesBrowser({ onOpen, onSearch, autoFocus = false }: { onOpen: 
             renderItem={({ item: p }) => {
               const slash = p.lastIndexOf("/");
               return (
-                <Pressable onPress={() => onOpen(p)} onLongPress={() => setToDelete(p)} style={({ pressed }) => ({ minHeight: 50, flexDirection: "row", alignItems: "center", gap: 8, paddingLeft: 14, paddingRight: 4, backgroundColor: pressed ? c.surface2 : "transparent" })}>
+                <Pressable onPress={() => onOpen(p)} onLongPress={() => setToDelete(p)} delayLongPress={400} accessibilityHint="Long press to delete" accessibilityActions={[{ name: "delete", label: `Delete ${p}` }]} onAccessibilityAction={(e) => e.nativeEvent.actionName === "delete" && setToDelete(p)} style={({ pressed }) => ({ minHeight: 50, flexDirection: "row", alignItems: "center", gap: 8, paddingLeft: 14, paddingRight: 14, backgroundColor: pressed ? c.surface2 : "transparent" })}>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text numberOfLines={1} style={{ fontFamily: FONT.mono, fontSize: 13, color: c.foreground }}>{p.slice(slash + 1)}</Text>
                     {slash > 0 ? <Text numberOfLines={1} style={{ fontFamily: FONT.mono, fontSize: 11, color: c.mutedForeground }}>{p.slice(0, slash)}</Text> : null}
                   </View>
                   <Mark mark={marks.get(p)} />
-                  <IconBtn icon={Trash2} label={`Delete ${p}`} size={36} onPress={() => setToDelete(p)} />
                 </Pressable>
               );
             }}

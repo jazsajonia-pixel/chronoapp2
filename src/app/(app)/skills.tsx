@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { View } from "react-native";
-import { Cloud, HardDrive, Pencil, Plus, Sparkles, Trash2, Wand2 } from "lucide-react-native";
+import { Cloud, HardDrive, Pencil, Plus, Sparkles, Trash2 } from "lucide-react-native";
 import { useSkills, type SkillDraft } from "@/features/skills/use-skills";
 import { BUILTIN_SKILLS, SKILL_LIMITS, cleanSkillText, type UserSkill } from "@/lib/skills";
 import { describeError } from "@/lib/errors";
 import { Btn, ConfirmSheet, Divider, ErrorState, Field, Header, IconBtn, Row, Screen, Section, Sheet, Skeleton, Switch, T } from "@/ui/kit";
-import { RADIUS, useTheme } from "@/ui/theme";
+import { FONT, RADIUS, useTheme } from "@/ui/theme";
 
 /**
  * Skills: reusable guidance added to the agent's instructions.
@@ -37,11 +37,12 @@ export default function SkillsScreen() {
     }
   };
   const toggle = (id: string, name: string, on: boolean) => void run(skills.toggle(id), `${name} ${on ? "enabled" : "disabled"}`);
-  const list = { borderRadius: RADIUS.lg, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, overflow: "hidden" as const };
+  // Flat, edge-to-edge rows separated by hairlines (no card chrome).
+  const list = { marginHorizontal: -16 };
 
   return (
     <>
-      <Header title="Skills" large right={<Btn label="Add skill" icon={Plus} size="sm" onPress={() => setEditing("new")} disabled={atLimit} testID="button-add-skill" />} />
+      <Header title="Skills" back right={<Btn label="Add skill" icon={Plus} size="sm" onPress={() => setEditing("new")} disabled={atLimit} testID="button-add-skill" />} />
       <Screen>
         <T variant="small" style={{ fontSize: 14 }}>
           Reusable guidance Chrono adds to every AI request. Enabled skills shape how the agent works — they never change what it's allowed to do.
@@ -58,13 +59,13 @@ export default function SkillsScreen() {
               const on = skills.enabled.includes(s.id);
               return (
                 <View key={s.id}>
-                  {i ? <Divider /> : null}
-                  <Row gap={12} style={{ padding: 14 }} center={false}>
-                    <View style={{ width: 32, height: 32, borderRadius: RADIUS.md, backgroundColor: a("primary", 0.12), alignItems: "center", justifyContent: "center" }}>
-                      <Sparkles size={15} color={c.primary} />
+                  {i ? <Divider style={{ marginLeft: 49 }} /> : null}
+                  <Row gap={14} style={{ paddingVertical: 12, paddingHorizontal: 16 }} center={false}>
+                    <View style={{ paddingTop: 2 }}>
+                      <Sparkles size={19} color={on ? c.primary : c.mutedForeground} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <T variant="h3" style={{ fontSize: 14 }}>{s.name}</T>
+                      <T style={{ fontSize: 15, lineHeight: 21, fontFamily: FONT.medium }}>{s.name}</T>
                       <T variant="small">{s.description}</T>
                     </View>
                     <Switch value={on} onValueChange={(next) => toggle(s.id, s.name, next)} label={`${s.name} skill`} />
@@ -94,11 +95,9 @@ export default function SkillsScreen() {
           ) : skills.status === "error" && skills.custom.length === 0 ? (
             <ErrorState error={skills.error} onRetry={() => void skills.reload()} />
           ) : skills.custom.length === 0 ? (
-            <View testID="empty-custom-skills" style={{ borderRadius: RADIUS.lg, borderWidth: 1, borderStyle: "dashed", borderColor: c.border, padding: 20, alignItems: "center", gap: 6 }}>
-              <Wand2 size={24} color={c.mutedForeground} />
-              <T variant="h3">No custom skills yet</T>
-              <T variant="small" style={{ textAlign: "center" }}>Write your own — e.g. "Use our design tokens", "Prefer Zod for validation", or your team's commit style.</T>
-              <Btn label="Write a skill" icon={Plus} size="sm" onPress={() => setEditing("new")} style={{ marginTop: 6 }} testID="button-add-first-skill" />
+            <View testID="empty-custom-skills" style={{ paddingVertical: 8, gap: 8, alignItems: "flex-start" }}>
+              <T variant="small">No custom skills yet. Write your own — e.g. "Use our design tokens", "Prefer Zod for validation", or your team's commit style.</T>
+              <Btn label="Write a skill" icon={Plus} size="sm" variant="secondary" onPress={() => setEditing("new")} testID="button-add-first-skill" />
             </View>
           ) : (
             <View style={list} testID="list-custom-skills">
@@ -106,14 +105,14 @@ export default function SkillsScreen() {
                 const on = skills.enabled.includes(s.id);
                 return (
                   <View key={s.id} testID={`row-skill-${s.id}`}>
-                    {i ? <Divider /> : null}
-                    <Row gap={4} style={{ paddingVertical: 10, paddingLeft: 14, paddingRight: 10 }}>
+                    {i ? <Divider style={{ marginLeft: 16 }} /> : null}
+                    <Row gap={4} style={{ paddingVertical: 10, paddingLeft: 16, paddingRight: 12, minHeight: 56 }}>
                       <View style={{ flex: 1, minWidth: 0 }}>
-                        <T variant="h3" numberOfLines={1} style={{ fontSize: 14 }}>{s.name}</T>
+                        <T numberOfLines={1} style={{ fontSize: 15, lineHeight: 21, fontFamily: FONT.medium }}>{s.name}</T>
                         <T variant="small" numberOfLines={2}>{s.description || s.instructions}</T>
                       </View>
-                      <IconBtn icon={Pencil} label={`Edit ${s.name}`} size={36} onPress={() => setEditing(s)} testID={`button-edit-skill-${s.id}`} />
-                      <IconBtn icon={Trash2} label={`Delete ${s.name}`} size={36} color="danger" onPress={() => setDeleting(s)} testID={`button-delete-skill-${s.id}`} />
+                      <IconBtn icon={Pencil} label={`Edit ${s.name}`} size={44} onPress={() => setEditing(s)} testID={`button-edit-skill-${s.id}`} />
+                      <IconBtn icon={Trash2} label={`Delete ${s.name}`} size={44} onPress={() => setDeleting(s)} testID={`button-delete-skill-${s.id}`} />
                       <Switch value={on} onValueChange={(next) => toggle(s.id, s.name, next)} label={`${s.name} skill`} />
                     </Row>
                   </View>

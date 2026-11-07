@@ -26,7 +26,7 @@ export default function PreviewHub() {
   const items = recentRepos().slice(0, 8);
   return (
     <>
-      <Header title="Preview" back />
+      <Header title="Preview" menu />
       <Screen>
         <T variant="small" style={{ fontSize: 14 }}>Run a project — including unsaved edits — on this device or on a live server. Pick one to open its Preview tab.</T>
         {items.length ? (
