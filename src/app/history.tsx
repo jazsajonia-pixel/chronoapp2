@@ -7,7 +7,7 @@ import { HISTORY_STATUS_LABEL, filterHistory, repoOptions, toHistoryEntry, type 
 import { STATUS_TONE, TaskDetailSheet } from "@/features/history/task-detail";
 import { ShippedNote } from "@/features/git/shipped-note";
 import { timeAgo } from "@/lib/utils";
-import { Badge, Btn, Chip, EmptyState, Header, Row, T } from "@/ui/kit";
+import { Badge, Btn, Chip, EmptyState, Header, T } from "@/ui/kit";
 import { FONT, RADIUS, useTheme } from "@/ui/theme";
 
 const STATUSES: (HistoryStatus | "all")[] = ["all", "needs_review", "shipped", "done", "in_progress", "failed"];

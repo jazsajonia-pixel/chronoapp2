@@ -108,7 +108,7 @@ export function useAgent(project: AgentProject) {
       await advance(t, { step, workspace: view, signal: ctrl.signal, onUpdate: (x) => abortRef.current === ctrl && upsertFromRun(x) });
       if (abortRef.current === ctrl) abortRef.current = null;
     },
-    [step, view, upsertFromRun],
+    [step, view, upsert, upsertFromRun],
   );
 
   /** Build the user message: request + attached file contents (as data, clearly fenced). */

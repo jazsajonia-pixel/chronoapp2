@@ -154,7 +154,6 @@ export function WorkspaceProvider({ source, children }: { source: WorkspaceSourc
       sub.remove();
       flush();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, persist]);
 
   const update = useCallback(

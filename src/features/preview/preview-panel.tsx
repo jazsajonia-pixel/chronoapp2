@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import type { ShouldStartLoadRequest } from "react-native-webview/lib/WebViewTypes";
@@ -10,6 +10,7 @@ import { emit } from "@/lib/events";
 import type { WorkspaceTab } from "@/lib/nav";
 import { Btn, IconBtn, Row, Sheet, T } from "@/ui/kit";
 import { FONT, RADIUS, useTheme, type ColorName } from "@/ui/theme";
+import { LivePanel } from "./live-panel";
 import { usePreview, type ConsoleEntry, type RuntimeError } from "./use-preview";
 
 type Device = "fit" | "phone" | "desktop";
@@ -127,6 +128,10 @@ export function PreviewPanel({ owner, repo, assetUrl, onTab }: { owner: string; 
     onTab("ai");
   };
 
+  if (state.status === "unsupported" && state.plan.liveServer) {
+    return <LivePanel key={ws.source.storageKey + "#" + ws.source.commitSha} owner={owner} repo={repo} label={state.plan.label} onTab={onTab} />;
+  }
+
   if (state.status === "unsupported") {
     return (
       <ScrollView contentContainerStyle={{ padding: 24, gap: 12, alignItems: "center", flexGrow: 1, justifyContent: "center" }} testID="preview-unsupported">
@@ -136,7 +141,7 @@ export function PreviewPanel({ owner, repo, assetUrl, onTab }: { owner: string; 
         <T variant="h2" style={{ textAlign: "center" }}>{state.plan.label} can't be previewed in the app</T>
         <T variant="small" style={{ textAlign: "center" }}>{state.plan.reason}</T>
         <T variant="small" style={{ textAlign: "center" }}>{state.plan.hint}</T>
-        <T variant="tiny" style={{ textAlign: "center" }}>Supported today: HTML/CSS/JS, Vite (React, Preact, TypeScript), Create React App.</T>
+        <T variant="tiny" style={{ textAlign: "center" }}>In the app: HTML/CSS/JS, Vite (React, Preact, TypeScript), Create React App. Node projects with a dev or start script run on the Live server.</T>
         <Row style={{ marginTop: 8 }}>
           <Btn label="Back to code" icon={Code2} variant="secondary" onPress={() => onTab("files")} />
           <Btn label="Check again" icon={RotateCw} variant="secondary" onPress={p.rebuild} />

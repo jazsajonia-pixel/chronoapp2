@@ -3,19 +3,27 @@ import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ArrowRight, Bot, Check, GitBranch, GitPullRequestArrow, Layers, MonitorSmartphone, ShieldCheck, Smartphone, Sparkles } from "lucide-react-native";
 import { useSession } from "@/stores/session";
-import { Badge, Btn, Card, Row, T } from "@/ui/kit";
+import { AppError } from "@/lib/errors";
+import { Badge, Btn, Card, ErrorState, Row, T } from "@/ui/kit";
 import { GitHubIcon, Wordmark } from "@/ui/brand";
 import { FONT, RADIUS, useTheme } from "@/ui/theme";
 
-const FEATURES = [
-  { icon: GitBranch, index: "01", title: "GitHub, in your pocket", body: "Browse branches, open files, and make focused edits without leaving the repo you already trust." },
-  { icon: Bot, index: "02", title: "An agent with a plan", body: "Chrono turns a request into a visible plan, then presents every change as a reviewable diff." },
-  { icon: MonitorSmartphone, index: "03", title: "Preview the real thing", body: "Run the app in a sandboxed preview so you can see what shipped — not a static screenshot." },
-  { icon: Smartphone, index: "04", title: "Designed for one hand", body: "Bottom sheets, thumb-friendly controls, and a calm mobile workflow from first edit to PR." },
-  { icon: Layers, index: "05", title: "Bring your model", body: "Use OpenAI, Anthropic, Gemini, OpenRouter, or an OpenAI-compatible endpoint behind one focused interface." },
-  { icon: GitPullRequestArrow, index: "06", title: "Ship with confidence", body: "Work on an ai/ branch, review the diff, commit, push, and open a pull request when it is ready." },
+/** Same copy as the website's landing (chrono src/pages/landing.tsx). */
+const STEPS = [
+  { title: "Connect", body: "Sign in with GitHub and open any repository you can access." },
+  { title: "Ask", body: "Describe the change. The agent reads the code and writes a plan." },
+  { title: "Review", body: "Every edit arrives as a diff you accept or reject, file by file." },
+  { title: "Preview", body: "Run the app in the app or on a live server, unsaved edits included." },
+  { title: "Ship", body: "Commit to a working branch, push, and open a pull request." },
 ] as const;
-const PIPELINE = ["Connect", "Plan", "Edit", "Preview", "Ship"];
+const FEATURES = [
+  { icon: GitBranch, title: "The repo you already trust", body: "Branches, files and commit history load straight from GitHub, at the branch you pick." },
+  { icon: Bot, title: "An agent that shows its work", body: "Requests become a visible plan, then reviewable diffs. Nothing is written until you accept it." },
+  { icon: MonitorSmartphone, title: "A preview of the real app", body: "Static sites and Vite apps run on the device; Node projects such as Next.js run on a temporary live server." },
+  { icon: Smartphone, title: "Made for a phone", body: "Bottom sheets, a keyboard-aware editor with a symbol bar, and controls sized for your thumb." },
+  { icon: Layers, title: "Your choice of model", body: "OpenAI, Anthropic, Gemini, OpenRouter or any OpenAI-compatible endpoint, with keys kept on the server." },
+  { icon: GitPullRequestArrow, title: "Branch first, always", body: "Changes go to an ai/ branch so main stays untouched until you merge the pull request." },
+] as const;
 
 function WorkspacePreview() {
   const { c, a } = useTheme();
@@ -33,11 +41,8 @@ function WorkspacePreview() {
     <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ marginTop: 28 }}>
       <View style={{ borderRadius: RADIUS.xl, borderWidth: 1, borderColor: a("primary", 0.25), backgroundColor: c.surface, overflow: "hidden" }}>
         <Row style={{ paddingHorizontal: 12, height: 36, borderBottomWidth: 1, borderBottomColor: c.border, justifyContent: "space-between" }}>
-          <Row gap={5}>
-            {[0, 1, 2].map((i) => <View key={i} style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: c.border }} />)}
-          </Row>
-          <T variant="label" style={{ fontSize: 9 }}>AI WORKSPACE</T>
-          <Row gap={5}><View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c.success }} /><T variant="tiny">Ready</T></Row>
+          <T variant="monoSmall" color="foreground">you/task-app</T>
+          <Row gap={4}><GitBranch size={11} color={c.mutedForeground} /><T variant="monoSmall">main</T></Row>
         </Row>
         <View style={{ padding: 12, gap: 4 }}>
           <Row gap={6} style={{ marginBottom: 6 }}>
@@ -74,7 +79,7 @@ function WorkspacePreview() {
 }
 
 export default function Landing() {
-  const { isAuthed, loading } = useSession();
+  const { isAuthed, loading, restoreError, refresh } = useSession();
   const { c, a } = useTheme();
   const insets = useSafeAreaInsets();
   if (!loading && isAuthed) return <Redirect href="/home" />;
@@ -85,73 +90,66 @@ export default function Landing() {
         <Badge label="Early access" tone="success" />
       </Row>
       <View style={{ marginTop: 28 }}>
-        <Row gap={8}>
-          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c.primary }} />
-          <T variant="label" color="primary">AI DEVELOPMENT, REIMAGINED</T>
-        </Row>
-        <T variant="display" style={{ marginTop: 14 }}>
-          Build what’s next.{"\n"}
-          <T variant="display" style={{ color: c.primary }}>From anywhere.</T>
+        {restoreError ? (
+          <ErrorState error={new AppError(restoreError, "Couldn't restore your session")} onRetry={() => void refresh()} style={{ marginBottom: 20 }} />
+        ) : null}
+        <T variant="display">
+          Build, preview and ship your GitHub projects <T variant="display" style={{ color: c.primary }}>from anywhere.</T>
         </T>
         <T variant="body" color="mutedForeground" style={{ marginTop: 14 }}>
-          A mobile-first development environment that brings your GitHub repos, AI agent, live preview, and pull requests together — in one calm workspace.
+          Open a repository, ask the AI agent for a change, review the diff, run the app and open a pull request — in one workspace.
         </T>
         <View style={{ marginTop: 22, gap: 10 }}>
           <Btn
             size="lg"
             full
-            label={isAuthed ? "Open workspace" : "Continue with GitHub"}
+            label={isAuthed ? "Open your projects" : "Continue with GitHub"}
             icon={isAuthed ? undefined : () => <GitHubIcon size={17} color={c.primaryForeground} />}
             iconRight={ArrowRight}
             onPress={() => router.push(isAuthed ? "/home" : "/signin")}
             testID="button-get-started"
           />
-          <T variant="tiny" style={{ textAlign: "center" }}>Free during early access · Your GitHub token never leaves the server</T>
+          <T variant="tiny" style={{ textAlign: "center" }}>Your GitHub token never leaves the server</T>
         </View>
         <WorkspacePreview />
       </View>
 
-      <View style={{ marginTop: 52, gap: 10 }}>
-        <T variant="label">One clear path to shipped code</T>
-        <Row gap={6} style={{ flexWrap: "wrap" }}>
-          {PIPELINE.map((step, i) => (
-            <Row key={step} gap={6}>
-              <View style={{ paddingHorizontal: 10, height: 28, borderRadius: 999, borderWidth: 1, borderColor: c.border, justifyContent: "center", backgroundColor: c.surface }}>
-                <T variant="small" color="foreground">
-                  <T variant="monoSmall" color="primary">{`0${i + 1} `}</T>
-                  {step}
-                </T>
-              </View>
-              {i < PIPELINE.length - 1 ? <ArrowRight size={12} color={c.mutedForeground} /> : null}
-            </Row>
-          ))}
-        </Row>
+      <View style={{ marginTop: 52, gap: 14 }}>
+        <T variant="title" accessibilityRole="header">From request to pull request</T>
+        {STEPS.map((step, i) => (
+          <Row key={step.title} center={false} gap={12}>
+            <View style={{ width: 2, alignSelf: "stretch", borderRadius: 1, backgroundColor: i === 0 ? c.primary : c.border }} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <T variant="h3">{step.title}</T>
+              <T variant="small">{step.body}</T>
+            </View>
+          </Row>
+        ))}
       </View>
 
-      <View style={{ marginTop: 44, gap: 12 }}>
-        <T variant="label" color="primary">THE WORKSPACE</T>
-        <T variant="title">Everything between a repo and a pull request.</T>
+      <View style={{ marginTop: 44, gap: 16 }}>
+        <T variant="title" accessibilityRole="header">Everything between a repo and a merge</T>
         {FEATURES.map((f) => (
-          <Card key={f.index} style={{ gap: 8 }}>
-            <Row style={{ justifyContent: "space-between" }}>
-              <View style={{ width: 36, height: 36, borderRadius: RADIUS.md, backgroundColor: a("primary", 0.12), alignItems: "center", justifyContent: "center" }}>
-                <f.icon size={18} color={c.primary} />
-              </View>
-              <T variant="monoSmall">{f.index}</T>
-            </Row>
-            <T variant="h3">{f.title}</T>
-            <T variant="small">{f.body}</T>
-          </Card>
+          <Row key={f.title} center={false} gap={12}>
+            <View style={{ width: 36, height: 36, borderRadius: RADIUS.md, backgroundColor: a("primary", 0.12), alignItems: "center", justifyContent: "center" }}>
+              <f.icon size={18} color={c.primary} />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <T variant="h3">{f.title}</T>
+              <T variant="small">{f.body}</T>
+            </View>
+          </Row>
         ))}
       </View>
 
       <Card style={{ marginTop: 36, gap: 10 }} tone="primary">
         <ShieldCheck size={26} color={c.primary} />
-        <T variant="h2">Secure by default</T>
+        <T variant="h2">Your code and keys stay where they belong</T>
         {[
-          "GitHub tokens are sealed server-side; the app only holds an encrypted session in the device keychain.",
-          "Your AI keys are encrypted at rest (AES-256-GCM) and never sent back to the device.",
-          "Previews run sandboxed, isolated from your account.",
+          "GitHub tokens are sealed on the server; the app only holds an encrypted session in the device keychain.",
+          "AI provider keys are encrypted at rest and only used by server functions.",
+          "Every change lands on a working branch first.",
+          "Previews run sandboxed; live servers run in an isolated sandbox that shuts down after 10 minutes.",
         ].map((t) => (
           <Row key={t} center={false} gap={8}>
             <Check size={15} color={c.success} style={{ marginTop: 3 }} />
@@ -161,13 +159,11 @@ export default function Landing() {
       </Card>
 
       <View style={{ marginTop: 40, alignItems: "center", gap: 12 }}>
-        <T variant="label">THE NEXT COMMIT IS CLOSER THAN YOU THINK</T>
-        <T variant="title" style={{ textAlign: "center" }}>
-          Make your best ideas <T variant="title" style={{ color: c.primary }}>shippable from anywhere.</T>
-        </T>
-        <Btn label={isAuthed ? "Open workspace" : "Get started"} iconRight={ArrowRight} onPress={() => router.push(isAuthed ? "/home" : "/signin")} />
+        <T variant="title" style={{ textAlign: "center" }}>Open a repository and try it.</T>
+        <T variant="small" style={{ textAlign: "center" }}>Chrono is in early access. All you need is a GitHub account.</T>
+        <Btn label={isAuthed ? "Open your projects" : "Continue with GitHub"} iconRight={ArrowRight} onPress={() => router.push(isAuthed ? "/home" : "/signin")} />
       </View>
-      <T variant="tiny" style={{ textAlign: "center", marginTop: 36 }}>Chrono · Early access · Built for developers who code on the go</T>
+      <T variant="tiny" style={{ textAlign: "center", marginTop: 36 }}>Chrono · Early access</T>
     </ScrollView>
   );
 }

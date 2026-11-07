@@ -10,7 +10,7 @@ import { GitHubIcon, LogoMark } from "@/ui/brand";
 import { RADIUS, useTheme } from "@/ui/theme";
 
 export default function SignIn() {
-  const { isAuthed, loading, endedReason, signIn } = useSession();
+  const { isAuthed, loading, endedReason, restoreError, signIn, refresh } = useSession();
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   const [includePrivate, setIncludePrivate] = useState(false);
@@ -62,6 +62,9 @@ export default function SignIn() {
             onPress={() => void start()}
           />
           {shownError ? <ErrorState error={shownError} /> : null}
+          {!shownError && restoreError ? (
+            <ErrorState error={new AppError(restoreError, "Couldn't restore your session")} onRetry={() => void refresh()} />
+          ) : null}
         </View>
         <Row center={false} gap={8} style={{ marginTop: 28 }}>
           <Lock size={14} color={c.mutedForeground} style={{ marginTop: 2 }} />

@@ -24,6 +24,8 @@ jobs:
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
       - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
       - run: npx expo prebuild --platform android --no-install
       - name: Build release APK
         working-directory: android

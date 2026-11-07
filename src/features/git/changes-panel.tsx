@@ -101,7 +101,6 @@ export function ChangesPanel({ target, onEdit, version = 0 }: { target: GitTarge
     }
     return { a, r };
   }, [ws.changes]);
-  const patchCount = selected.length || ws.changes.length;
 
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
