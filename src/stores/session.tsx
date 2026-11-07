@@ -5,6 +5,8 @@ import * as Crypto from "expo-crypto";
 import type { Session } from "@/types/session";
 import type { AuthSessionResponse } from "@/types/github";
 import { api, SESSION_EXPIRED_EVENT } from "@/lib/api";
+import { API_BASE } from "@/lib/config";
+import { checkSession } from "@/lib/session-check";
 import { AppError, type ErrorCode, isErrorCode } from "@/lib/errors";
 import { on } from "@/lib/events";
 import { getSessionToken, loadSessionToken, setSessionToken } from "@/lib/token";
@@ -19,6 +21,8 @@ interface SessionContextValue {
   loading: boolean;
   isAuthed: boolean;
   endedReason: ErrorCode | null;
+  /** A saved session exists but the server couldn't be reached to confirm it. */
+  restoreError: ErrorCode | null;
   signIn: (includePrivate: boolean) => Promise<void>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -26,18 +30,20 @@ interface SessionContextValue {
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
-async function fetchGitHubSession(): Promise<Session> {
-  if (!getSessionToken()) return { mode: "anonymous" };
-  try {
-    const res = await api<AuthSessionResponse>("/auth/session", { timeoutMs: 10_000 });
-    if (res.authenticated) {
-      return { mode: "github", user: res.user, scopes: res.scopes, includePrivate: res.includePrivate, expiresAt: res.expiresAt };
-    }
-    await setSessionToken(null);
-  } catch {
-    // Backend unreachable → signed out for now (token kept for the next try).
+/** Restore the saved session. Only a definitive "signed out" from the server deletes the token. */
+async function fetchGitHubSession(): Promise<{ session: Session; unreachable: ErrorCode | null }> {
+  if (!getSessionToken()) return { session: { mode: "anonymous" }, unreachable: null };
+  const result = await checkSession(api, API_BASE);
+  if (result.kind === "authed") {
+    const res = result.session;
+    return { session: { mode: "github", user: res.user, scopes: res.scopes, includePrivate: res.includePrivate, expiresAt: res.expiresAt }, unreachable: null };
   }
-  return { mode: "anonymous" };
+  if (result.kind === "signed-out") {
+    await setSessionToken(null);
+    return { session: { mode: "anonymous" }, unreachable: null };
+  }
+  // Offline / backend down: signed out for now, token kept so "Try again" can restore it.
+  return { session: { mode: "anonymous" }, unreachable: result.code };
 }
 
 const b64url = (b64: string) => b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -81,30 +87,37 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session>({ mode: "anonymous" });
   const [loading, setLoading] = useState(true);
   const [endedReason, setEndedReason] = useState<ErrorCode | null>(null);
+  const [restoreError, setRestoreError] = useState<ErrorCode | null>(null);
+
+  const apply = useCallback((r: { session: Session; unreachable: ErrorCode | null }) => {
+    setSession(r.session);
+    setRestoreError(r.unreachable);
+  }, []);
 
   const refresh = useCallback(async () => {
-    setSession(await fetchGitHubSession());
-  }, []);
+    apply(await fetchGitHubSession());
+  }, [apply]);
 
   useEffect(() => {
     let alive = true;
     void loadSessionToken()
       .then(fetchGitHubSession)
-      .then((s) => {
+      .then((r) => {
         if (!alive) return;
-        setSession(s);
+        apply(r);
         setLoading(false);
       });
     return () => {
       alive = false;
     };
-  }, []);
+  }, [apply]);
 
   useEffect(
     () =>
       on(SESSION_EXPIRED_EVENT, (detail) => {
         const code = detail as ErrorCode;
         void setSessionToken(null);
+        setRestoreError(null);
         setSession((cur) => (cur.mode === "github" ? { mode: "anonymous" } : cur));
         setEndedReason(code === "UNAUTHENTICATED" ? "SESSION_EXPIRED" : code);
       }),
@@ -115,10 +128,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const token = await nativeGitHubSignIn(includePrivate);
     await setSessionToken(token);
     setEndedReason(null);
-    const s = await fetchGitHubSession();
-    if (s.mode !== "github") throw new AppError("OAUTH_EXCHANGE_FAILED");
-    setSession(s);
-  }, []);
+    const r = await fetchGitHubSession();
+    if (r.session.mode !== "github") {
+      // Keep the new token when the check only failed to reach the server.
+      if (r.unreachable) throw new AppError(r.unreachable);
+      throw new AppError("OAUTH_EXCHANGE_FAILED");
+    }
+    apply(r);
+  }, [apply]);
 
   const signOut = useCallback(async () => {
     if (getSessionToken()) {
@@ -130,12 +147,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
     await setSessionToken(null);
     setEndedReason(null);
+    setRestoreError(null);
     setSession({ mode: "anonymous" });
   }, []);
 
   const value = useMemo<SessionContextValue>(
-    () => ({ session, loading, isAuthed: session.mode === "github", endedReason, signIn, signOut, refresh }),
-    [session, loading, endedReason, signIn, signOut, refresh],
+    () => ({ session, loading, isAuthed: session.mode === "github", endedReason, restoreError, signIn, signOut, refresh }),
+    [session, loading, endedReason, restoreError, signIn, signOut, refresh],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

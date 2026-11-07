@@ -12,13 +12,16 @@ import { getSessionToken } from "./token";
 export interface ApiOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
   timeoutMs?: number;
+  /** Absolute API base (https only) for this call; defaults to the configured Chrono API. */
+  baseUrl?: string;
 }
 
 /** Fired when the server says the GitHub session is gone; the session store signs the user out. */
 export const SESSION_EXPIRED_EVENT = "mdai:session-expired";
 
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
-  const { body, timeoutMs = 15_000, headers, signal: outer, ...rest } = options;
+  const { body, timeoutMs = 15_000, headers, signal: outer, baseUrl, ...rest } = options;
+  const base = baseUrl && /^https:\/\/[^/?#]+\/api$/.test(baseUrl) ? baseUrl : API_BASE;
 
   if (isOffline()) throw new AppError("NETWORK_OFFLINE");
   const token = getSessionToken();
@@ -32,7 +35,7 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
 
   let response: Response;
   try {
-    response = await fetch(`${API_BASE}${path}`, {
+    response = await fetch(`${base}${path}`, {
       // The native app authenticates with the sealed session as a bearer token (kept in the
       // OS keychain), not cookies.
       credentials: "omit",
