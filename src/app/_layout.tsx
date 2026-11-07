@@ -41,7 +41,7 @@ function Chrome() {
   const pathname = usePathname();
   const drawerOpen = useDrawerOpen();
   const { loading: restoring } = useSession();
-  const [launchVisible, setLaunchVisible] = useState(restoring);
+  const [launchVisible, setLaunchVisible] = useState(true);
   const hideLaunch = useCallback(() => setLaunchVisible(false), []);
   useEffect(() => setMonitoringRoute(pathname), [pathname]);
   useEffect(() => {
@@ -53,7 +53,7 @@ function Chrome() {
   }, []);
   return (
     <View style={{ flex: 1, backgroundColor: c.background }}>
-      <StatusBar style={dark ? "light" : "dark"} />
+      <StatusBar hidden={launchVisible} style={dark ? "light" : "dark"} />
       {/* While the drawer is open, screen readers stay inside it (the drawer used to be a Modal). */}
       <View style={{ flex: 1 }} importantForAccessibility={drawerOpen || launchVisible ? "no-hide-descendants" : "auto"} accessibilityElementsHidden={drawerOpen || launchVisible}>
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.background }, animation: "slide_from_right" }}>
