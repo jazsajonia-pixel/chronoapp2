@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { useWorkspace } from "@/features/workspace/context";
+import { getLiveDiagnostics } from "@/features/preview/live-diagnostics";
 import { detectProjectKindFromPaths } from "@/lib/tree";
 import { enabledSkillIds } from "@/features/skills/use-skills";
 import type { AgentAttachment, AgentMode, AgentProjectContext, AgentStepResponse } from "@/types/agent";
@@ -76,6 +77,7 @@ export function useAgent(project: AgentProject) {
       changes: () => wsRef.current.changes,
       baseSize: (p) => wsRef.current.source.baseSizes?.get(p),
       probe: async (result) => (await import("@/features/preview/probe")).probePreview(result),
+      liveDiagnostics: () => getLiveDiagnostics(wsRef.current.source.storageKey),
     }),
     [],
   );

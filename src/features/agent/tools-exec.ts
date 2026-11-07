@@ -21,6 +21,8 @@ export interface WorkspaceView {
   baseSize?: (path: string) => number | undefined;
   /** Runs a built preview briefly in a hidden sandboxed frame (browser only). */
   probe?: (result: import("@/features/preview/bundler").BuildResult) => Promise<import("@/features/preview/probe").ProbeReport>;
+  /** Latest live-server diagnostics for this workspace (status, logs, browser errors), if any. */
+  liveDiagnostics?: () => import("@/features/preview/live-diagnostics").LiveDiagnostics | undefined;
 }
 
 export interface ToolResult {
@@ -207,6 +209,10 @@ async function exec(name: ToolName, args: Record<string, unknown>, ws: Workspace
       const paths = overlayPaths(ws, proposal);
       const read = (p: string) => overlayRead(ws, proposal, p).catch(() => null);
       const plan = await analyzeProject(paths, read);
+      if (!plan.supported && plan.liveServer) {
+        const { describeLiveDiagnostics } = await import("@/features/preview/live-diagnostics");
+        return { content: describeLiveDiagnostics(ws.liveDiagnostics?.(), plan.label), proposal };
+      }
       if (!plan.supported) return { content: `Preview not available: ${plan.label}. ${plan.reason}`, proposal };
       const page = rawPage ? cleanPath(rawPage) : undefined;
       if (page && !plan.pages.includes(page)) throw new ToolError(`${page} is not an HTML page in this project. Pages: ${plan.pages.slice(0, 20).join(", ")}`);

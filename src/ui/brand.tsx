@@ -1,37 +1,51 @@
 import { View } from "react-native";
-import Svg, { Circle, Defs, LinearGradient, Path, Stop } from "react-native-svg";
+import Svg, { Circle, Path } from "react-native-svg";
 import { T } from "./kit";
 import { useTheme } from "./theme";
 
-/** Chrono mark — same artwork as the website's /chrono-mark.svg and /chrono-mark-dark.svg. */
-const MARK = {
-  light: { prism: ["#2866F2", "#258FEA", "#16B7B0"], top: ["#8FE7FF", 0.72], bottom: ["#087EAC", 0.78], cursor: ["#A8F1FF", "#48D9DC"], line: "#48D9DC", dot: "#B4F5FF" },
-  dark: { prism: ["#71B9FF", "#49C8F4", "#39E1D1"], top: ["#E3FBFF", 0.76], bottom: ["#0A9EAA", 0.86], cursor: ["#F2FDFF", "#8AF5E8"], line: "#82F4E9", dot: "#F0FFFF" },
+/**
+ * Chrono mark: a "C" drawn as a clock dial, with one hand pointing out through the opening.
+ * Flat, two colours, no gradients. Source of truth: assets/brand/chrono-mark.svg, which
+ * scripts/make-icons.py turns into the app icon, adaptive icon layers, splash and favicon.
+ */
+export const MARK_PATHS = {
+  ring: "M50.72 52.35A22 22 0 1 1 50.72 19.65",
+  hand: "M36 36L45.85 28.30",
 } as const;
 
-export function LogoMark({ size = 32 }: { size?: number }) {
+/** Brand colours. `dark` matches the launcher icon and splash; `light` is for light surfaces. */
+export const MARK_COLORS = {
+  dark: { ring: "#2DBDFB", hand: "#5EEAD4" },
+  light: { ring: "#0A6BEB", hand: "#0D9488" },
+} as const;
+
+/** The dial ring only (used under an animated hand on the launch screen). */
+export function MarkRing({ size, color }: { size: number; color: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 72 72">
+      <Path d={MARK_PATHS.ring} fill="none" stroke={color} strokeWidth={10} />
+    </Svg>
+  );
+}
+
+/** The hand and hub only. Rotating this view about its centre turns the hand around the dial. */
+export function MarkHand({ size, color }: { size: number; color: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 72 72">
+      <Path d={MARK_PATHS.hand} fill="none" stroke={color} strokeWidth={5.5} strokeLinecap="round" />
+      <Circle cx="36" cy="36" r="5" fill={color} />
+    </Svg>
+  );
+}
+
+export function LogoMark({ size = 32, tone }: { size?: number; tone?: "dark" | "light" }) {
   const { dark } = useTheme();
-  const m = dark ? MARK.dark : MARK.light;
-  const id = dark ? "d" : "l";
+  const m = MARK_COLORS[tone ?? (dark ? "dark" : "light")];
   return (
     <Svg width={size} height={size} viewBox="0 0 72 72" accessibilityLabel="Chrono">
-      <Defs>
-        <LinearGradient id={`chrono-prism-${id}`} x1="10" y1="8" x2="62" y2="64" gradientUnits="userSpaceOnUse">
-          <Stop stopColor={m.prism[0]} />
-          <Stop offset="0.52" stopColor={m.prism[1]} />
-          <Stop offset="1" stopColor={m.prism[2]} />
-        </LinearGradient>
-        <LinearGradient id={`chrono-cursor-${id}`} x1="33" y1="29" x2="48" y2="43" gradientUnits="userSpaceOnUse">
-          <Stop stopColor={m.cursor[0]} />
-          <Stop offset="1" stopColor={m.cursor[1]} />
-        </LinearGradient>
-      </Defs>
-      <Path d="M56 8H33L9 32V40L33 64H56V49H39L25 36L39 23H56V8Z" fill={`url(#chrono-prism-${id})`} />
-      <Path d="M33 8H56L43 21H39L25 32L20 27Z" fill={m.top[0]} opacity={m.top[1]} />
-      <Path d="M39 51H43L56 64H33L20 45L25 40Z" fill={m.bottom[0]} opacity={m.bottom[1]} />
-      <Path d="M40 28L48 36L40 44L32 36Z" fill={`url(#chrono-cursor-${id})`} />
-      <Path d="M44.5 36H60" fill="none" stroke={m.line} strokeWidth={3.2} strokeLinecap="round" />
-      <Circle cx="60" cy="36" r="3.4" fill={m.dot} />
+      <Path d={MARK_PATHS.ring} fill="none" stroke={m.ring} strokeWidth={10} />
+      <Path d={MARK_PATHS.hand} fill="none" stroke={m.hand} strokeWidth={5.5} strokeLinecap="round" />
+      <Circle cx="36" cy="36" r="5" fill={m.hand} />
     </Svg>
   );
 }

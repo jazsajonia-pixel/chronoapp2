@@ -1,5 +1,5 @@
 import "@/polyfills";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { View } from "react-native";
 import { Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -17,10 +17,11 @@ import { Geist_700Bold } from "@expo-google-fonts/geist/700Bold";
 import { GeistMono_400Regular } from "@expo-google-fonts/geist-mono/400Regular";
 import { GeistMono_500Medium } from "@expo-google-fonts/geist-mono/500Medium";
 import { hydrateStorage } from "@/lib/storage";
+import { loadSessionToken } from "@/lib/token";
 import { setOffline } from "@/lib/api";
 import { installErrorReporting, setMonitoringRoute } from "@/lib/monitoring";
 import { reloadSkillsCache } from "@/features/skills/use-skills";
-import { SessionProvider } from "@/stores/session";
+import { SessionProvider, useSession } from "@/stores/session";
 import { ThemeProvider, useTheme } from "@/ui/theme";
 import { ToastHost } from "@/ui/kit";
 import { ProbeHost } from "@/features/preview/probe-host";
@@ -28,6 +29,7 @@ import { CommandPalette } from "@/features/command/command-palette";
 import { AppDrawer } from "@/features/shell/app-drawer";
 import { useDrawerOpen } from "@/features/shell/drawer-store";
 import { ErrorBoundary as AppErrorBoundary } from "@/components/error-boundary";
+import { LaunchScreen } from "@/features/shell/launch-screen";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
 installErrorReporting();
@@ -38,6 +40,9 @@ function Chrome() {
   const { c, dark } = useTheme();
   const pathname = usePathname();
   const drawerOpen = useDrawerOpen();
+  const { loading: restoring } = useSession();
+  const [launchVisible, setLaunchVisible] = useState(restoring);
+  const hideLaunch = useCallback(() => setLaunchVisible(false), []);
   useEffect(() => setMonitoringRoute(pathname), [pathname]);
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(c.background).catch(() => {});
@@ -50,7 +55,7 @@ function Chrome() {
     <View style={{ flex: 1, backgroundColor: c.background }}>
       <StatusBar style={dark ? "light" : "dark"} />
       {/* While the drawer is open, screen readers stay inside it (the drawer used to be a Modal). */}
-      <View style={{ flex: 1 }} importantForAccessibility={drawerOpen ? "no-hide-descendants" : "auto"} accessibilityElementsHidden={drawerOpen}>
+      <View style={{ flex: 1 }} importantForAccessibility={drawerOpen || launchVisible ? "no-hide-descendants" : "auto"} accessibilityElementsHidden={drawerOpen || launchVisible}>
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.background }, animation: "slide_from_right" }}>
           <Stack.Screen name="index" options={{ animation: "fade" }} />
           <Stack.Screen name="(app)" options={{ animation: "fade" }} />
@@ -60,6 +65,7 @@ function Chrome() {
       <AppDrawer />
       <CommandPalette />
       <ToastHost />
+      {launchVisible ? <LaunchScreen restoring={restoring} onDone={hideLaunch} /> : null}
     </View>
   );
 }
@@ -68,8 +74,9 @@ export default function RootLayout() {
   const [ready, setReady] = useState(false);
   const [fontsLoaded, fontError] = useFonts({ Geist_400Regular, Geist_500Medium, Geist_600SemiBold, Geist_700Bold, GeistMono_400Regular, GeistMono_500Medium });
   useEffect(() => {
-    void hydrateStorage()
-      .catch(() => {})
+    // Both are local reads (a few ms). Reading the keychain here lets a signed-out start skip the
+    // launch screen entirely; failures fall through (no saved session / default settings).
+    void Promise.all([hydrateStorage().catch(() => {}), loadSessionToken().catch(() => null)])
       .finally(() => {
         reloadSkillsCache();
         setReady(true);

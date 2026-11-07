@@ -1,13 +1,30 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, Share, Text, View } from "react-native";
+import * as Clipboard from "expo-clipboard";
 import { WebView } from "react-native-webview";
 import type { ShouldStartLoadRequest } from "react-native-webview/lib/WebViewTypes";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { AlertTriangle, Code2, ExternalLink, Maximize2, Minimize2, Play, RotateCw, ServerOff, Square, Terminal } from "lucide-react-native";
+import { AlertTriangle, Code2, Copy, ExternalLink, Globe, Maximize2, Minimize2, Play, RotateCw, ServerOff, Share2, Sparkles, Square, Terminal, X } from "lucide-react-native";
 import type { WorkspaceTab } from "@/lib/nav";
-import { Btn, IconBtn, Row, Sheet, T } from "@/ui/kit";
-import { FONT, RADIUS, useTheme } from "@/ui/theme";
+import { useWorkspace } from "@/features/workspace/context";
+import { Btn, IconBtn, Row, Sheet, T, toast } from "@/ui/kit";
+import { FONT, RADIUS, useTheme, type ColorName } from "@/ui/theme";
 import { useLiveServer } from "./use-live-server";
+import { prefillAgent } from "./agent-prefill";
+import { DESKTOP_VIEWPORT, DeviceFrame, DeviceToggle, type Device } from "./viewport";
+import {
+  LIVE_CAPTURE_JS,
+  clearLiveCapture,
+  forgetLiveDiagnostics,
+  liveFixPrompt,
+  parseLiveMessage,
+  recordLiveMessage,
+  updateLiveDiagnostics,
+  type LiveConsoleEntry,
+  type LiveRuntimeError,
+} from "./live-diagnostics";
+
+const LEVEL_COLOR: Record<LiveConsoleEntry["level"], ColorName> = { log: "foreground", debug: "mutedForeground", info: "primary", warn: "warning", error: "danger" };
 
 const DISCLOSURE =
   "Chrono copies current editor files, including unsaved edits, into an isolated Vercel Sandbox. The server expires after 10 minutes. Anyone with the preview URL can view the site, so do not put secrets in project files.";
@@ -29,8 +46,58 @@ export function LivePanel({ owner, repo, label, onTab }: { owner: string; repo: 
   const [full, setFull] = useState(false);
   const [logsOpen, setLogsOpen] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [device, setDevice] = useState<Device>("fit");
+  const [consoleOpen, setConsoleOpen] = useState(false);
+  // Captured browser output belongs to one page load; a reload, new URL or viewport starts afresh.
+  const [capture, setCapture] = useState<{ key: string; entries: LiveConsoleEntry[]; errors: LiveRuntimeError[]; dismissed: number }>({ key: "", entries: [], errors: [], dismissed: 0 });
   const transitioning = status === "starting" || status === "stopping";
   const { start } = live;
+  const { storageKey } = useWorkspace().source;
+
+  // Share status, logs and captured browser errors with the agent's request_preview tool.
+  useEffect(() => {
+    updateLiveDiagnostics(storageKey, { status, url, logs, error, message, files: live.state.files });
+  }, [storageKey, status, url, logs, error, message, live.state.files]);
+  useEffect(() => () => forgetLiveDiagnostics(storageKey), [storageKey]);
+  const loadKey = `${storageKey}|${url ?? ""}|${live.frameKey}|${device}`;
+  useEffect(() => clearLiveCapture(storageKey), [storageKey, loadKey]);
+  const current = capture.key === loadKey ? capture : { key: loadKey, entries: [], errors: [], dismissed: 0 };
+  const entries = current.entries;
+  const runtimeErrors = current.errors;
+  const errorDismissed = current.dismissed;
+  const setErrorDismissed = (n: number) => setCapture({ ...current, dismissed: n });
+  const resetCapture = () => {
+    clearLiveCapture(storageKey);
+    setCapture({ key: loadKey, entries: [], errors: [], dismissed: 0 });
+  };
+
+  const onFrameMessage = (raw: string) => {
+    const msg = parseLiveMessage(raw);
+    if (!msg) return;
+    const d = recordLiveMessage(storageKey, msg);
+    setCapture((cur) => ({ key: loadKey, entries: d.console, errors: d.errors, dismissed: cur.key === loadKey ? cur.dismissed : 0 }));
+  };
+  const askAi = (runtime?: LiveRuntimeError) => {
+    prefillAgent(storageKey, liveFixPrompt({ status, error, logs, errors: runtimeErrors }, runtime), "agent");
+    setFull(false);
+    setConsoleOpen(false);
+    setLogsOpen(false);
+    onTab("ai");
+  };
+  const copyUrl = async () => {
+    if (!url) return;
+    try {
+      await Clipboard.setStringAsync(url);
+      toast("Preview link copied", "success");
+    } catch {
+      toast("Couldn't copy the link", "danger");
+    }
+  };
+  const shareUrl = () => {
+    if (url) void Share.share({ message: url, url }).catch(() => undefined);
+  };
+  const errorCount = entries.filter((e) => e.level === "error").length;
+  const latestError = runtimeErrors.length > errorDismissed ? runtimeErrors[runtimeErrors.length - 1] : undefined;
 
   // Same as the website: opening Preview on a server project starts it once; failures wait for Retry.
   useEffect(() => {
@@ -39,7 +106,7 @@ export function LivePanel({ owner, repo, label, onTab }: { owner: string; repo: 
   useEffect(() => setLoadError(null), [url, live.frameKey]);
 
   const statusText =
-    status === "running" ? "Live server ready"
+    status === "running" ? "Running"
     : status === "starting" ? (message ?? "Starting live server…")
     : status === "stopping" ? "Stopping live server…"
     : status === "failed" ? "Live server failed"
@@ -59,28 +126,53 @@ export function LivePanel({ owner, repo, label, onTab }: { owner: string; repo: 
     return false;
   };
 
+  const running = status === "running";
   const toolbar = (
     <Row gap={2} style={{ paddingHorizontal: 8, minHeight: 48, borderBottomWidth: 1, borderBottomColor: c.border, backgroundColor: c.background }}>
       <Row gap={6} style={{ flex: 1, minWidth: 0, paddingLeft: 4 }} testID="preview-status">
-        {transitioning ? <ActivityIndicator size="small" color={c.primary} /> : status === "failed" ? <AlertTriangle size={14} color={c.danger} /> : <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: status === "running" ? c.success : c.mutedForeground }} />}
+        {transitioning ? <ActivityIndicator size="small" color={c.primary} /> : status === "failed" ? <AlertTriangle size={14} color={c.danger} /> : <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: running ? c.success : c.mutedForeground }} />}
         <T variant="small" color="foreground" weight="medium" numberOfLines={1} style={{ flexShrink: 1 }} accessibilityLiveRegion="polite">{statusText}</T>
       </Row>
-      {status === "running" ? (
-        <Btn label="Stop" icon={Square} size="sm" variant="outline" onPress={live.stop} testID="button-stop-live-server" />
+      {running ? (
+        <>
+          <DeviceToggle device={device} onChange={setDevice} />
+          <IconBtn icon={RotateCw} label="Reload live preview" size={38} onPress={live.reload} testID="button-reload-preview" />
+          <View>
+            <IconBtn icon={Terminal} label="Console and server logs" size={38} onPress={() => setConsoleOpen(true)} testID="button-console" />
+            {errorCount ? (
+              <View pointerEvents="none" style={{ position: "absolute", top: 3, right: 2, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: c.danger, alignItems: "center", justifyContent: "center", paddingHorizontal: 3 }}>
+                <Text style={{ fontSize: 10, color: "#fff", fontFamily: FONT.bold }}>{errorCount > 99 ? "99+" : errorCount}</Text>
+              </View>
+            ) : null}
+          </View>
+          <IconBtn icon={Square} label="Stop live server" size={38} onPress={live.stop} testID="button-stop-live-server" />
+        </>
       ) : (
         <Btn label={status === "failed" ? "Retry" : "Start"} icon={Play} size="sm" onPress={live.start} disabled={transitioning} testID="button-start-live-server" />
       )}
-      <IconBtn icon={RotateCw} label="Reload live preview" size={44} onPress={live.reload} disabled={status !== "running"} testID="button-reload-preview" />
-      <IconBtn icon={ExternalLink} label="Open live preview in browser" size={44} onPress={openExternal} disabled={!url} testID="button-open-live-preview" />
-      <IconBtn icon={full ? Minimize2 : Maximize2} label={full ? "Exit full screen" : "Full screen"} size={44} onPress={() => setFull(!full)} testID="button-fullscreen" />
+      <IconBtn icon={full ? Minimize2 : Maximize2} label={full ? "Exit full screen" : "Full screen"} size={38} onPress={() => setFull(!full)} testID="button-fullscreen" />
     </Row>
   );
 
+  const urlBar =
+    running && url ? (
+      <Row gap={2} style={{ paddingLeft: 12, paddingRight: 6, minHeight: 40, borderBottomWidth: 1, borderBottomColor: c.border, backgroundColor: c.surface }} testID="live-url-bar">
+        <Globe size={13} color={c.mutedForeground} />
+        <T variant="monoSmall" color="foreground" numberOfLines={1} ellipsizeMode="middle" style={{ flex: 1, marginLeft: 6 }} accessibilityHint="Public link. Anyone with it can open this preview until the server stops." testID="live-url">
+          {url.replace(/^https:\/\//, "")}
+        </T>
+        <IconBtn icon={Copy} label="Copy preview link" size={36} onPress={() => void copyUrl()} testID="button-copy-live-url" />
+        <IconBtn icon={Share2} label="Share preview link" size={36} onPress={shareUrl} testID="button-share-live-url" />
+        <IconBtn icon={ExternalLink} label="Open live preview in browser" size={36} onPress={openExternal} testID="button-open-live-preview" />
+      </Row>
+    ) : null;
+
   const stage =
     status === "running" && url ? (
-      <View style={{ flex: 1, backgroundColor: "#fff" }}>
+      <View style={{ flex: 1, backgroundColor: device === "phone" ? c.muted : "#fff" }}>
+        <DeviceFrame device={device}>
         <WebView
-          key={live.frameKey}
+          key={`${live.frameKey}:${device}`}
           testID="live-server-frame"
           accessibilityLabel={`Live preview of ${repo}`}
           source={{ uri: url }}
@@ -93,12 +185,33 @@ export function LivePanel({ owner, repo, label, onTab }: { owner: string; repo: 
           allowFileAccess={false}
           allowsInlineMediaPlayback
           setSupportMultipleWindows={false}
+          scalesPageToFit={device === "desktop"}
+          injectedJavaScriptBeforeContentLoaded={LIVE_CAPTURE_JS}
+          injectedJavaScript={device === "desktop" ? DESKTOP_VIEWPORT : undefined}
+          onMessage={(e) => onFrameMessage(e.nativeEvent.data)}
           onShouldStartLoadWithRequest={onShouldStart}
           onError={(e) => setLoadError(e.nativeEvent.description || "The page couldn't be loaded.")}
           onHttpError={(e) => { if (e.nativeEvent.statusCode >= 500) setLoadError(`The server answered ${e.nativeEvent.statusCode}. Check the logs, then reload.`); }}
           style={{ flex: 1, backgroundColor: "#fff" }}
           containerStyle={{ backgroundColor: "#fff" }}
         />
+        </DeviceFrame>
+        {latestError && !loadError ? (
+          <View accessibilityRole="alert" testID="live-runtime-error" style={{ position: "absolute", left: 12, right: 12, bottom: 12, padding: 12, gap: 8, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: a("danger", 0.4), backgroundColor: c.surface }}>
+            <Row center={false} gap={8}>
+              <AlertTriangle size={16} color={c.danger} style={{ marginTop: 2 }} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <T variant="small" color="foreground" weight="semibold">{runtimeErrors.length > 1 ? `Runtime error (${runtimeErrors.length})` : "Runtime error"}</T>
+                <T variant="small" color="foreground" numberOfLines={4} selectable>{latestError.message}</T>
+              </View>
+              <IconBtn icon={X} label="Dismiss error" size={32} onPress={() => setErrorDismissed(runtimeErrors.length)} />
+            </Row>
+            <Row style={{ justifyContent: "space-between" }}>
+              <Btn label="Console" icon={Terminal} size="sm" variant="secondary" onPress={() => setConsoleOpen(true)} />
+              <Btn label="Fix with AI" icon={Sparkles} size="sm" onPress={() => askAi(latestError)} testID="button-fix-with-ai" />
+            </Row>
+          </View>
+        ) : null}
         {loadError ? (
           <View accessibilityRole="alert" style={{ position: "absolute", left: 12, right: 12, bottom: 12, padding: 12, gap: 8, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: a("danger", 0.4), backgroundColor: c.surface }}>
             <T variant="small" color="foreground">{loadError}</T>
@@ -123,6 +236,7 @@ export function LivePanel({ owner, repo, label, onTab }: { owner: string; repo: 
         {status === "idle" || status === "stopped" ? <Btn label={status === "idle" ? "Start live server" : "Start again"} icon={Play} onPress={live.start} testID="button-start-live-server-body" /> : null}
         <Row style={{ flexWrap: "wrap", justifyContent: "center" }}>
           {logs ? <Btn label="Server logs" icon={Terminal} variant="secondary" size="sm" onPress={() => setLogsOpen(true)} testID="button-live-logs" /> : null}
+          {status === "failed" && (logs || error) ? <Btn label="Fix with AI" icon={Sparkles} size="sm" onPress={() => askAi()} testID="button-live-fix-with-ai" /> : null}
           <Btn label="Back to code" icon={Code2} variant="secondary" size="sm" onPress={() => onTab("files")} />
         </Row>
         <T variant="tiny" style={{ textAlign: "center", maxWidth: 420 }}>{label} · {DISCLOSURE}</T>
@@ -132,11 +246,12 @@ export function LivePanel({ owner, repo, label, onTab }: { owner: string; repo: 
   return (
     <View style={{ flex: 1 }} testID="preview-panel">
       {full ? null : toolbar}
+      {full ? null : urlBar}
       {full ? <View style={{ flex: 1 }} /> : stage}
       {!full && status === "running" ? (
         <Pressable onPress={() => setLogsOpen(true)} accessibilityRole="button" accessibilityLabel="Server logs" style={{ minHeight: 32, justifyContent: "center", paddingHorizontal: 12, borderTopWidth: 1, borderTopColor: c.border }}>
           <T variant="tiny" numberOfLines={1}>
-            Vercel Sandbox · includes unsaved edits{live.state.files ? ` · ${live.state.files} files` : ""} · expires after 10 min · logs
+            Vercel Sandbox · public link · includes unsaved edits{live.state.files ? ` · ${live.state.files} files` : ""} · expires after 10 min · logs
           </T>
         </Pressable>
       ) : null}
@@ -147,6 +262,31 @@ export function LivePanel({ owner, repo, label, onTab }: { owner: string; repo: 
           {stage}
         </View>
       </Modal>
+
+      <Sheet
+        open={consoleOpen}
+        onClose={() => setConsoleOpen(false)}
+        title="Console"
+        description="Browser output from the live preview, captured on this device."
+        footer={
+          <Row>
+            <Btn label="Server logs" icon={Terminal} variant="secondary" style={{ flex: 1 }} onPress={() => { setConsoleOpen(false); setLogsOpen(true); }} />
+            <Btn label="Clear" variant="secondary" style={{ flex: 1 }} onPress={resetCapture} />
+          </Row>
+        }
+      >
+        {entries.length === 0 ? (
+          <T variant="small">No console output yet.</T>
+        ) : (
+          <View testID="live-console-log" style={{ borderRadius: RADIUS.md, backgroundColor: c.background, borderWidth: 1, borderColor: c.border }}>
+            {entries.map((l, i) => (
+              <Text key={l.id} selectable style={{ fontFamily: FONT.mono, fontSize: 12, lineHeight: 17, color: c[LEVEL_COLOR[l.level]], paddingHorizontal: 10, paddingVertical: 5, borderTopWidth: i ? 1 : 0, borderTopColor: c.border, backgroundColor: l.level === "error" ? a("danger", 0.06) : l.level === "warn" ? a("warning", 0.06) : "transparent" }}>
+                {l.text}
+              </Text>
+            ))}
+          </View>
+        )}
+      </Sheet>
 
       <Sheet open={logsOpen} onClose={() => setLogsOpen(false)} title="Server logs" description={DISCLOSURE}>
         {logs ? (

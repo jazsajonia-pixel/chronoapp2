@@ -83,7 +83,7 @@ export const TOOLS: Record<ToolName, ToolDef> = {
     name: "request_preview",
     kind: "read",
     description:
-      "Build the in-browser preview of the project INCLUDING your proposed changes, run it briefly in a sandbox, and report build errors, runtime errors and console warnings. Use it after editing to verify your changes work. Only browser-compatible frontends (HTML/CSS/JS, Vite/React, CRA) can be previewed.",
+      "Build the in-browser preview of the project INCLUDING your proposed changes, run it briefly in a sandbox, and report build errors, runtime errors and console warnings. Use it after editing to verify your changes work. For projects that need a real server (Next.js, Express…), it instead reports the user's running live server: status, server log and browser errors (it never starts one; that only reflects files sent at start, not your proposal).",
     parameters: { type: "object", properties: { page: str("Optional HTML page to build, e.g. about.html (default: the entry page)") }, required: [] },
   },
   propose_plan: {
