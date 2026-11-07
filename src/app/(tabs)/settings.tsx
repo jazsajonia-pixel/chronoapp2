@@ -43,11 +43,11 @@ export default function SettingsScreen() {
 
         <Section title="AI providers">
           <ActiveProviderLink />
-          <Card onPress={() => router.push("/ai-providers")} testID="button-chrono-flex" style={{ padding: 14 }}>
+          <Card onPress={() => router.push("/ai-providers")} testID="button-manage-providers" style={{ padding: 14 }}>
             <Row>
               <Sparkles size={16} color={c.primary} />
-              <T variant="h3" style={{ flex: 1, fontSize: 14 }}>Chrono Flex</T>
-              <T variant="tiny">Bring your own key</T>
+              <T variant="h3" style={{ flex: 1, fontSize: 14 }}>Manage providers</T>
+              <T variant="tiny">Add your own key</T>
               <ChevronRight size={16} color={c.mutedForeground} />
             </Row>
           </Card>

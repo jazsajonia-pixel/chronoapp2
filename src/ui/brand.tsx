@@ -1,30 +1,37 @@
 import { View } from "react-native";
-import Svg, { Defs, LinearGradient, Path, Rect, Stop, G } from "react-native-svg";
+import Svg, { Circle, Defs, LinearGradient, Path, Stop } from "react-native-svg";
 import { T } from "./kit";
 import { useTheme } from "./theme";
 
-/** Chrono mark — same artwork as the website's /chrono-mark.svg. */
+/** Chrono mark — same artwork as the website's /chrono-mark.svg and /chrono-mark-dark.svg. */
+const MARK = {
+  light: { prism: ["#2866F2", "#258FEA", "#16B7B0"], top: ["#8FE7FF", 0.72], bottom: ["#087EAC", 0.78], cursor: ["#A8F1FF", "#48D9DC"], line: "#48D9DC", dot: "#B4F5FF" },
+  dark: { prism: ["#71B9FF", "#49C8F4", "#39E1D1"], top: ["#E3FBFF", 0.76], bottom: ["#0A9EAA", 0.86], cursor: ["#F2FDFF", "#8AF5E8"], line: "#82F4E9", dot: "#F0FFFF" },
+} as const;
+
 export function LogoMark({ size = 32 }: { size?: number }) {
   const { dark } = useTheme();
+  const m = dark ? MARK.dark : MARK.light;
+  const id = dark ? "d" : "l";
   return (
     <Svg width={size} height={size} viewBox="0 0 72 72" accessibilityLabel="Chrono">
       <Defs>
-        <LinearGradient id="chrono-ribbon" x1="12" y1="10" x2="58" y2="62" gradientUnits="userSpaceOnUse">
-          <Stop stopColor="#39B9F2" />
-          <Stop offset="0.58" stopColor="#26B9E8" />
-          <Stop offset="1" stopColor="#16C9CE" />
+        <LinearGradient id={`chrono-prism-${id}`} x1="10" y1="8" x2="62" y2="64" gradientUnits="userSpaceOnUse">
+          <Stop stopColor={m.prism[0]} />
+          <Stop offset="0.52" stopColor={m.prism[1]} />
+          <Stop offset="1" stopColor={m.prism[2]} />
+        </LinearGradient>
+        <LinearGradient id={`chrono-cursor-${id}`} x1="33" y1="29" x2="48" y2="43" gradientUnits="userSpaceOnUse">
+          <Stop stopColor={m.cursor[0]} />
+          <Stop offset="1" stopColor={m.cursor[1]} />
         </LinearGradient>
       </Defs>
-      <G transform="translate(4 0)">
-        <Path d="M56 10H34C19.64 10 8 21.64 8 36s11.64 26 26 26h22V50H34c-7.73 0-14-6.27-14-14s6.27-14 14-14h22V10Z" fill="url(#chrono-ribbon)" />
-        <Path d="M45 10H56V22H51L45 16Z" fill="#8AE6FF" />
-        <Path d="M45 62H56V50H51L45 56Z" fill="#0A9EB2" />
-        <Path d="M36 26A10 10 0 0 0 36 46" fill="none" stroke="#16C9CE" strokeWidth={3.2} strokeLinecap="round" />
-        <Path d="M29 27H36V33H44V27H51V45H44V39H36V45H29Z" fill={dark ? "#E6F1FA" : "#0B1220"} />
-        <Path d="M44 36H52.5" fill="none" stroke="#16C9CE" strokeWidth={3.2} strokeLinecap="round" />
-        <Rect x="37.4" y="34.1" width="4.2" height="3.8" rx="0.7" fill="#54DED6" />
-        <Rect x="52.5" y="33.1" width="6" height="5.8" rx="1.2" fill="#54DED6" />
-      </G>
+      <Path d="M56 8H33L9 32V40L33 64H56V49H39L25 36L39 23H56V8Z" fill={`url(#chrono-prism-${id})`} />
+      <Path d="M33 8H56L43 21H39L25 32L20 27Z" fill={m.top[0]} opacity={m.top[1]} />
+      <Path d="M39 51H43L56 64H33L20 45L25 40Z" fill={m.bottom[0]} opacity={m.bottom[1]} />
+      <Path d="M40 28L48 36L40 44L32 36Z" fill={`url(#chrono-cursor-${id})`} />
+      <Path d="M44.5 36H60" fill="none" stroke={m.line} strokeWidth={3.2} strokeLinecap="round" />
+      <Circle cx="60" cy="36" r="3.4" fill={m.dot} />
     </Svg>
   );
 }

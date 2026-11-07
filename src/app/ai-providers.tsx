@@ -24,9 +24,9 @@ export default function AIProvidersScreen() {
   };
   return (
     <>
-      <Header title="Chrono Flex" subtitle="AI providers" back right={canAdd ? <Btn label="Add" icon={Plus} size="sm" onPress={openAdd} testID="button-add-provider" /> : null} />
+      <Header title="AI providers" back right={canAdd ? <Btn label="Add" icon={Plus} size="sm" onPress={openAdd} testID="button-add-provider" /> : null} />
       <Screen>
-        <T variant="small" style={{ fontSize: 14 }}>Bring your own API key, choose a provider, and make it the default for your AI workspace.</T>
+        <T variant="small" style={{ fontSize: 14 }}>Add your own API key, choose a model and make it the default for the agent.</T>
         {state.status === "loading" ? (
           <View style={{ gap: 12 }} accessibilityLabel="Loading providers">
             <Skeleton height={80} />
