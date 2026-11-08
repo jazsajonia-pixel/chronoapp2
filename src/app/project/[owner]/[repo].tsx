@@ -269,6 +269,17 @@ function GitHubWorkspace({ owner, name, initialTab }: { owner: string; name: str
   );
 
   const pane = (t: WorkspaceTab): ReactNode => {
+    if (treeFailed) {
+      return describeError(tree.error).code === "EMPTY_REPOSITORY" ? (
+        <EmptyState icon={FolderGit2} title="This repository is empty">Push a first commit on GitHub, then come back.</EmptyState>
+      ) : (
+        <View style={{ padding: 16 }}>
+          <ErrorState error={tree.error} onRetry={tree.retry} />
+        </View>
+      );
+    }
+    if (!source || repo.status !== "success") return loading;
+    // The dashboard reads the workspace, which only exists once the tree has loaded.
     if (t === "overview") {
       return (
         <ProjectDashboard
@@ -284,16 +295,6 @@ function GitHubWorkspace({ owner, name, initialTab }: { owner: string; name: str
         />
       );
     }
-    if (treeFailed) {
-      return describeError(tree.error).code === "EMPTY_REPOSITORY" ? (
-        <EmptyState icon={FolderGit2} title="This repository is empty">Push a first commit on GitHub, then come back.</EmptyState>
-      ) : (
-        <View style={{ padding: 16 }}>
-          <ErrorState error={tree.error} onRetry={tree.retry} />
-        </View>
-      );
-    }
-    if (!source || repo.status !== "success") return loading;
     if (t === "files") return <FilesTab onGit={() => setTab("git")} />;
     if (t === "ai") return <AgentPanel project={{ owner: project.owner, repo: project.name, branch: shownBranch, source: "github" }} active={tab === "ai"} onTab={setTab} />;
     if (t === "preview") return <PreviewPanel owner={owner} repo={name} active={tab === "preview"} onTab={setTab} assetUrl={pub && sha ? (p: string) => `https://raw.githubusercontent.com/${owner}/${name}/${sha}/${p.split("/").map(encodeURIComponent).join("/")}` : undefined} />;

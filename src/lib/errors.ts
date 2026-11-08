@@ -23,7 +23,7 @@ const COPY: Record<ErrorCode, ErrorCopy> = {
   },
   BACKEND_UNAVAILABLE: {
     title: "Backend not reachable",
-    hint: "Netlify Functions aren't running. Locally, start the app with `netlify dev` instead of `vite`.",
+    hint: "Chrono's server didn't answer. Check your connection, then try again in a moment.",
   },
   UNAUTHENTICATED: {
     title: "Sign in required",
