@@ -18,6 +18,7 @@ export default function AppLayout() {
       <Stack.Screen name="ai" />
       <Stack.Screen name="settings" />
       <Stack.Screen name="skills" options={{ animation: "slide_from_right" }} />
+      <Stack.Screen name="knowledge" options={{ animation: "slide_from_right" }} />
     </Stack>
   );
 }

@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from "react";
 import { Pressable, View } from "react-native";
 import { router } from "expo-router";
-import { ChevronRight, ExternalLink, GitBranch, History, KeyRound, LogOut, Moon, Sparkles, Sun } from "lucide-react-native";
+import { BookMarked, ChevronRight, ExternalLink, GitBranch, History, KeyRound, LogOut, Moon, Sparkles, Sun } from "lucide-react-native";
 import * as WebBrowser from "expo-web-browser";
 import { ActiveProviderLink } from "@/features/ai/active-provider";
 import { BackendStatus } from "@/features/settings/backend-status";
 import { useSkills } from "@/features/skills/use-skills";
+import { useKnowledge } from "@/features/knowledge/store";
 import { APP_VERSION } from "@/lib/monitoring";
 import { WEB_URL } from "@/lib/config";
 import { useSession } from "@/stores/session";
@@ -35,6 +36,8 @@ export default function SettingsScreen() {
   const skills = useSkills();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const skillsOn = skills.all.filter((s) => skills.enabled.includes(s.id)).length;
+  const knowledge = useKnowledge(session.mode === "github" ? session.user.id : null);
+  const knowledgeLine = !knowledge.settings.enabled ? "Off · notes kept on this device" : `${knowledge.notes.length} note${knowledge.notes.length === 1 ? "" : "s"} on this device${knowledge.settings.autoSave ? " · saved automatically" : ""}`;
   const skillsLine = skills.status === "loading" && !skills.all.length ? "Loading…" : `${skillsOn} of ${skills.all.length} enabled · guidance applied to every chat`;
   return (
     <>
@@ -79,6 +82,7 @@ export default function SettingsScreen() {
               <ActiveProviderLink key="provider" />,
               <ListRow key="manage" icon={KeyRound} title="Manage providers" subtitle="Add your own key, pick models, set the default" onPress={() => router.push("/ai-providers")} right={chevron(c.mutedForeground)} testID="button-manage-providers" />,
               <ListRow key="skills" icon={Sparkles} title="Skills" subtitle={skillsLine} onPress={() => router.push("/skills")} right={chevron(c.mutedForeground)} testID="link-settings-skills" />,
+              <ListRow key="knowledge" icon={BookMarked} title="Knowledge" subtitle={knowledgeLine} onPress={() => router.push("/knowledge")} right={chevron(c.mutedForeground)} testID="link-settings-knowledge" />,
               <ListRow key="history" icon={History} title="Task history" subtitle="Every agent task on this device" onPress={() => router.push("/history")} right={chevron(c.mutedForeground)} testID="link-settings-history" />,
             ]}
           </Group>

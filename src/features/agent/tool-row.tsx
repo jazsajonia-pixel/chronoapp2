@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { canUndoSave, undoSave } from "@/features/knowledge/store";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
-import { CheckCircle2, ChevronDown, FilePen, FilePlus2, FileSearch, FileText, FileX2, FolderTree, GitCompare, MonitorPlay, Package, Replace, XCircle } from "lucide-react-native";
+import { BookMarked, BookOpen, CheckCircle2, ChevronDown, FilePen, FilePlus2, FileSearch, FileText, FileX2, FolderTree, GitCompare, MonitorPlay, Package, Replace, XCircle } from "lucide-react-native";
 import { TOOLS, isToolName, type ToolName } from "@/lib/agent-tools";
 import type { AgentMessage, ToolCall } from "@/types/agent";
 import { T } from "@/ui/kit";
@@ -19,6 +20,8 @@ const ICON: Record<ToolName, typeof FileText> = {
   apply_patch: Replace,
   delete_file: FileX2,
   rename_file: FilePen,
+  save_knowledge: BookMarked,
+  search_knowledge: BookOpen,
 };
 
 function s(v: unknown): string {
@@ -51,9 +54,26 @@ export function describeCall(c: ToolCall): string {
       return `Delete ${s(a.path)}`;
     case "rename_file":
       return `Rename ${s(a.from)} → ${s(a.to)}`;
+    case "save_knowledge":
+      return `Saved to knowledge: ${s(a.title)}`;
+    case "search_knowledge":
+      return `Search knowledge for “${s(a.query)}”`;
     default:
       return c.name;
   }
+}
+
+/** Undo for a note the agent just saved (restores the previous version, or removes a new note). */
+function UndoSave({ callId }: { callId: string }) {
+  const { c } = useTheme();
+  const [state, setState] = useState<"ready" | "undone" | "gone">(() => (canUndoSave(callId) ? "ready" : "gone"));
+  if (state === "gone") return null;
+  if (state === "undone") return <T variant="tiny">undone</T>;
+  return (
+    <Pressable testID="undo-save-knowledge" accessibilityRole="button" accessibilityLabel="Undo knowledge save" hitSlop={8} onPress={() => setState(undoSave(callId) ? "undone" : "gone")} style={({ pressed }) => ({ paddingHorizontal: 8, paddingVertical: 4, borderRadius: RADIUS.sm, backgroundColor: pressed ? c.surface2 : "transparent" })}>
+      <T variant="tiny" color="primary">Undo</T>
+    </Pressable>
+  );
 }
 
 /** One logged tool call. Every call the model makes is shown; tap to see arguments and output. */
@@ -73,6 +93,7 @@ export function ToolRow({ call, result, running }: { call: ToolCall; result?: Ex
         <Icon size={14} color={danger ? c.danger : write ? c.primary : c.mutedForeground} />
         <T variant="small" color="foreground" numberOfLines={1} style={{ flex: 1, fontFamily: FONT.mono, fontSize: 12 }}>{describeCall(call)}</T>
         {write && status === "ok" ? <T variant="tiny" color="primary">proposed</T> : null}
+        {call.name === "save_knowledge" && status === "ok" ? <UndoSave callId={call.id} /> : null}
         {status === "running" ? <ActivityIndicator size="small" color={c.primary} /> : null}
         {status === "ok" ? <CheckCircle2 size={14} color={c.success} /> : null}
         {status === "error" ? <XCircle size={14} color={c.danger} /> : null}
