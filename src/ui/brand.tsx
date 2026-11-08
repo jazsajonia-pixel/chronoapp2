@@ -1,24 +1,35 @@
-import { Image, View } from "react-native";
-import Svg, { Path } from "react-native-svg";
+import { View } from "react-native";
+import Svg, { G, Path } from "react-native-svg";
 import { T } from "./kit";
+import { useTheme } from "./theme";
 
-/** Chrono's refined gradient C-arrow mark, exported from the canonical SVG. */
-export function LogoMark({ size = 32 }: { size?: number; tone?: "dark" | "light" }) {
+/**
+ * Chrono's C-chevron mark as vector paths — the same geometry as assets/brand/chrono-mark.svg
+ * (120-unit canvas with built-in optical padding). The open ring is time; the chevron is the next
+ * command. Defaults to the theme accent: Ember on Ink, Ember Deep on Paper.
+ */
+export const MARK_RING = "M86.97 33.95A37.5 37.5 0 1 0 86.97 86.05";
+export const MARK_CHEVRON = "M56.5 46L76 60L56.5 74";
+
+export function LogoMark({ size = 32, color }: { size?: number; color?: string }) {
+  const { c } = useTheme();
+  const stroke = color ?? c.primary;
   return (
-    <Image
-      source={require("../../assets/brand/chrono-symbol.png")}
-      style={{ width: size, height: size * (180 / 240) }}
-      resizeMode="contain"
-      accessibilityLabel="Chrono"
-    />
+    <Svg width={size} height={size} viewBox="0 0 120 120" accessibilityLabel="Chrono" accessibilityRole="image">
+      <G transform="translate(3 0)" fill="none" stroke={stroke} strokeLinecap="round" strokeLinejoin="round">
+        <Path d={MARK_RING} strokeWidth={17} />
+        <Path d={MARK_CHEVRON} strokeWidth={12.5} />
+      </G>
+    </Svg>
   );
 }
 
+/** In-app lockup (header/drawer): mark + "Chrono", as in the brand sheet's app UI. */
 export function Wordmark({ size = 30 }: { size?: number }) {
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
       <LogoMark size={size} />
-      <T variant="h2" style={{ fontSize: size * 0.62, letterSpacing: -0.4 }}>Chrono</T>
+      <T variant="h2" style={{ fontSize: size * 0.6, letterSpacing: -0.3 }}>Chrono</T>
     </View>
   );
 }

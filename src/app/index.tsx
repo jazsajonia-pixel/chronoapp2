@@ -83,14 +83,14 @@ export default function Landing() {
     <ScrollView style={{ flex: 1, backgroundColor: c.background }} contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 24, paddingHorizontal: 20 }}>
       <Row style={{ justifyContent: "space-between", height: 52 }}>
         <Wordmark />
-        <Badge label="Early access" tone="success" />
+        <Badge label="Early access" tone="primary" />
       </Row>
       <View style={{ marginTop: 28 }}>
         {restoreError ? (
           <ErrorState error={new AppError(restoreError, "Couldn't restore your session")} onRetry={() => void refresh()} style={{ marginBottom: 20 }} />
         ) : null}
         <T variant="display">
-          Build, preview and ship your GitHub projects <T variant="display" style={{ color: c.primary }}>from anywhere.</T>
+          Build, preview and ship your GitHub projects <T variant="display" style={{ color: c.primaryText }}>from anywhere.</T>
         </T>
         <T variant="body" color="mutedForeground" style={{ marginTop: 14 }}>
           Open a repository, ask the AI agent for a change, review the diff, run the app and open a pull request — in one workspace.
@@ -148,7 +148,7 @@ export default function Landing() {
           "Previews run sandboxed; live servers run in an isolated sandbox that shuts down after 10 minutes.",
         ].map((t) => (
           <Row key={t} center={false} gap={8}>
-            <Check size={15} color={c.success} style={{ marginTop: 3 }} />
+            <Check size={15} color={c.primary} style={{ marginTop: 3 }} />
             <T variant="small" style={{ flex: 1 }}>{t}</T>
           </Row>
         ))}

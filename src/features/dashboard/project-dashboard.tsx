@@ -3,6 +3,7 @@ import { Linking, ScrollView, View } from "react-native";
 import { router } from "expo-router";
 import { AlertTriangle, ArrowRight, CheckCircle2, ExternalLink, GitBranch, History, MonitorSmartphone, RefreshCw, XCircle } from "lucide-react-native";
 import { useWorkspace } from "@/features/workspace/context";
+import { RequirementsSection } from "@/features/project/requirements-section";
 import { diffChange } from "@/features/git/diff";
 import { GitStatus } from "@/features/git/git-status";
 import type { GitTarget } from "@/features/git/ship-panel";
@@ -145,6 +146,10 @@ export function ProjectDashboard({ project, target, syncedAt, refreshing = false
             No tasks yet. <T variant="small" color="primary" onPress={() => onTab("ai")}>Ask the agent</T>
           </T>
         )}
+      </Card>
+
+      <Card title="Runtime needs" testID="card-requirements">
+        <RequirementsSection />
       </Card>
 
       <Card title="Preview" testID="card-preview" action={<LinkText label="Open" icon={MonitorSmartphone} onPress={() => onTab("preview")} />}>

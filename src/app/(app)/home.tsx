@@ -10,6 +10,7 @@ import { useSkills } from "@/features/skills/use-skills";
 import { openCommandPalette, requestNewRepo } from "@/features/command/palette-store";
 import { chatPath, projectPath } from "@/lib/nav";
 import { timeAgo } from "@/lib/utils";
+import { LogoMark } from "@/ui/brand";
 import { Btn, Divider, Header, IconBtn, ListRow, Row, Section, Screen, T } from "@/ui/kit";
 import { FONT, RADIUS, useTheme } from "@/ui/theme";
 
@@ -79,7 +80,7 @@ export default function HomeScreen() {
 
   return (
     <>
-      <Header title="Chrono" large menu right={<IconBtn icon={Search} label="Search" size={48} onPress={openCommandPalette} testID="button-home-search" />} />
+      <Header title="Chrono" large menu leading={<LogoMark size={26} />} right={<IconBtn icon={Search} label="Search" size={48} onPress={openCommandPalette} testID="button-home-search" />} />
       <Screen>
         <View style={{ gap: 6, paddingTop: 8 }}>
           <T style={{ fontSize: 28, lineHeight: 34, fontFamily: FONT.semibold, letterSpacing: -0.4 }}>{first ? `${greeting()}, ${first}.` : `${greeting()}.`}</T>
