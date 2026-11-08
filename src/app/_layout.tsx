@@ -22,7 +22,7 @@ import { setOffline } from "@/lib/api";
 import { installErrorReporting, setMonitoringRoute } from "@/lib/monitoring";
 import { reloadSkillsCache } from "@/features/skills/use-skills";
 import { SessionProvider, useSession } from "@/stores/session";
-import { ThemeProvider, useTheme } from "@/ui/theme";
+import { BRAND, ThemeProvider, useTheme } from "@/ui/theme";
 import { ToastHost } from "@/ui/kit";
 import { ProbeHost } from "@/features/preview/probe-host";
 import { CommandPalette } from "@/features/command/command-palette";
@@ -105,7 +105,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <View style={{ flex: 1, backgroundColor: "#080A10" }}>
+        <View style={{ flex: 1, backgroundColor: BRAND.ink }}>
           {!appReady ? <ExpoStatusBar hidden style="light" /> : null}
           {appReady ? (
             <ThemeProvider>

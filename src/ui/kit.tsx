@@ -62,7 +62,8 @@ export function T({
   const { c } = useTheme();
   const fw = weight ? { fontFamily: variant.startsWith("mono") ? FONT.monoMedium : FONT[weight] } : null;
   const defaultColor: ColorName = variant === "small" || variant === "tiny" || variant === "label" || variant === "monoSmall" ? "mutedForeground" : "foreground";
-  return <Text {...rest} style={[VARIANT[variant], { color: c[color ?? defaultColor] }, fw, style]} />;
+  const tone = color === "primary" ? "primaryText" : color ?? defaultColor;
+  return <Text {...rest} style={[VARIANT[variant], { color: c[tone] }, fw, style]} />;
 }
 
 /* ───────────────────────── Buttons ───────────────────────── */
@@ -218,7 +219,7 @@ export function Card({ children, style, onPress, testID, tone }: { children: Rea
 
 export function Badge({ label, tone = "muted", icon: IconC }: { label: string; tone?: "muted" | "primary" | "success" | "warning" | "danger"; icon?: Icon }) {
   const { c, a } = useTheme();
-  const color = tone === "muted" ? c.mutedForeground : c[tone];
+  const color = tone === "muted" ? c.mutedForeground : tone === "primary" ? c.primaryText : c[tone];
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, height: 22, borderRadius: 999, backgroundColor: tone === "muted" ? c.surface2 : a(tone, 0.14), alignSelf: "flex-start" }}>
       {IconC ? <IconC size={12} color={color} /> : null}
@@ -498,7 +499,7 @@ export function Screen({ children, scroll = true, padded = true, refresh, conten
   );
 }
 
-export function Header({ title, subtitle, back, right, large, menu }: { title: string; subtitle?: string; back?: boolean | (() => void); right?: ReactNode; large?: boolean; menu?: boolean }) {
+export function Header({ title, subtitle, back, right, large, menu, leading }: { title: string; subtitle?: string; back?: boolean | (() => void); right?: ReactNode; large?: boolean; menu?: boolean; leading?: ReactNode }) {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   return (
@@ -506,6 +507,7 @@ export function Header({ title, subtitle, back, right, large, menu }: { title: s
       <Row style={{ minHeight: 56, paddingHorizontal: back || menu ? 4 : 16, paddingRight: 4 }} gap={4}>
         {menu ? <IconBtn icon={MenuIcon} label="Open menu" size={48} onPress={openDrawer} testID="button-open-menu" /> : null}
         {back ? <IconBtn icon={ChevronLeft} label="Back" onPress={typeof back === "function" ? back : () => (router.canGoBack() ? router.back() : router.replace("/home"))} /> : null}
+        {leading ? <View style={{ marginLeft: 4, marginRight: 4 }}>{leading}</View> : null}
         <View style={{ flex: 1, minWidth: 0 }}>
           <T variant={large ? "title" : "h2"} numberOfLines={1}>{title}</T>
           {subtitle ? <T variant="small" numberOfLines={1}>{subtitle}</T> : null}

@@ -1,21 +1,43 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { safeStorage } from "@/lib/storage";
 
-/** Same design tokens as the website's index.css (HSL), dark mode first. */
-type Hsl = [number, number, number];
-const LIGHT = {
-  background: [0, 0, 99], surface: [220, 20, 97], surface2: [220, 16, 93], border: [220, 13, 87], foreground: [222, 24, 10],
-  muted: [220, 14, 93], mutedForeground: [220, 9, 38], primary: [214, 92, 48], primaryForeground: [0, 0, 100], danger: [0, 70, 46],
-  warning: [32, 92, 38], success: [186, 88, 42], ring: [190, 95, 45], sidebar: [220, 22, 96], diffAdd: [145, 60, 40], diffDel: [0, 70, 50],
-} satisfies Record<string, Hsl>;
-const DARK: typeof LIGHT = {
-  background: [222, 42, 7], surface: [222, 34, 11], surface2: [221, 30, 16], border: [218, 24, 22], foreground: [210, 20, 95],
-  muted: [220, 10, 15], mutedForeground: [218, 11, 64], primary: [198, 96, 58], primaryForeground: [220, 45, 8], danger: [0, 78, 64],
-  warning: [38, 92, 60], success: [185, 90, 54], ring: [190, 95, 62], sidebar: [224, 46, 6], diffAdd: [145, 55, 50], diffDel: [0, 75, 62],
+/**
+ * Ember on Ink — Chrono's semantic colour tokens (hex). Ember is the single brand accent; Mint is
+ * reserved for positive status and added lines, Coral for errors and removed lines. Light mode
+ * swaps Ink for Paper and uses Ember Deep for accent text and buttons to keep 4.5:1 contrast.
+ * `primaryText` is the accent for small text: Ember in dark mode, a step deeper than Ember Deep on Paper
+ * (≥4.5:1 on every light surface). The editor WebView mirrors these values in editor/vars.css.
+ */
+export const BRAND = {
+  ink: "#0B0D12",
+  surface: "#14181F",
+  raised: "#1C222B",
+  ember: "#FF7A3C",
+  mint: "#3DDC97",
+  coral: "#FF5C6C",
+  paper: "#FAF8F5",
+  emberDeep: "#C94A12",
+} as const;
+
+type Tokens = Record<
+  | "background" | "surface" | "surface2" | "border" | "foreground" | "muted" | "mutedForeground" | "primary" | "primaryText" | "primaryForeground"
+  | "danger" | "warning" | "success" | "ring" | "sidebar" | "diffAdd" | "diffDel",
+  string
+>;
+
+const DARK: Tokens = {
+  background: BRAND.ink, surface: BRAND.surface, surface2: BRAND.raised, border: "#2A313C", foreground: "#ECEEF2",
+  muted: "#181D25", mutedForeground: "#98A1B0", primary: BRAND.ember, primaryText: BRAND.ember, primaryForeground: BRAND.ink, danger: BRAND.coral,
+  warning: "#F2B84B", success: BRAND.mint, ring: BRAND.ember, sidebar: "#0F1218", diffAdd: BRAND.mint, diffDel: BRAND.coral,
+};
+const LIGHT: Tokens = {
+  background: BRAND.paper, surface: "#F3F0EB", surface2: "#EAE6E0", border: "#DCD7CF", foreground: "#14181F",
+  muted: "#EEEAE4", mutedForeground: "#596070", primary: BRAND.emberDeep, primaryText: "#B5420F", primaryForeground: "#FFFFFF", danger: "#C42B3B",
+  warning: "#8A5600", success: "#0D7A4B", ring: BRAND.emberDeep, sidebar: "#F3F0EB", diffAdd: "#0D7A4B", diffDel: "#C42B3B",
 };
 
 export type Theme = "dark" | "light";
-export type ColorName = keyof typeof LIGHT;
+export type ColorName = keyof Tokens;
 
 export interface Palette {
   /** Solid colour. */
@@ -25,10 +47,14 @@ export interface Palette {
   dark: boolean;
 }
 
+function rgba(hex: string, alpha: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
 function palette(theme: Theme): Palette {
-  const src = theme === "dark" ? DARK : LIGHT;
-  const c = Object.fromEntries(Object.entries(src).map(([k, [h, s, l]]) => [k, `hsl(${h}, ${s}%, ${l}%)`])) as Record<ColorName, string>;
-  return { c, a: (n, alpha) => `hsla(${src[n][0]}, ${src[n][1]}%, ${src[n][2]}%, ${alpha})`, dark: theme === "dark" };
+  const c = theme === "dark" ? DARK : LIGHT;
+  return { c, a: (n, alpha) => rgba(c[n], alpha), dark: theme === "dark" };
 }
 
 export const FONT = {

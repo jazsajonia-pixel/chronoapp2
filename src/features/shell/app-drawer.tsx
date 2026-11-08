@@ -64,7 +64,7 @@ function Group({ title, action, children }: { title: string; action?: { label: s
         <T variant="small" style={{ fontFamily: FONT.medium }}>{title}</T>
         {action ? (
           <Pressable onPress={action.onPress} hitSlop={10} accessibilityRole="button">
-            <T variant="small" style={{ color: c.primary, fontFamily: FONT.medium }}>{action.label}</T>
+            <T variant="small" style={{ color: c.primaryText, fontFamily: FONT.medium }}>{action.label}</T>
           </Pressable>
         ) : null}
       </View>

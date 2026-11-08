@@ -7,6 +7,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AlertTriangle, Code2, Copy, ExternalLink, Globe, Maximize2, Minimize2, Play, RotateCw, ServerOff, Share2, Sparkles, Square, Terminal, X } from "lucide-react-native";
 import type { WorkspaceTab } from "@/lib/nav";
 import { useWorkspace } from "@/features/workspace/context";
+import { RequirementsSection } from "@/features/project/requirements-section";
+import { useProjectRequirements } from "@/features/project/use-requirements";
 import { Btn, IconBtn, Row, Sheet, T, toast } from "@/ui/kit";
 import { FONT, RADIUS, useTheme, type ColorName } from "@/ui/theme";
 import { useLiveServer } from "./use-live-server";
@@ -42,6 +44,7 @@ export function LivePanel({ owner, repo, label, onTab }: { owner: string; repo: 
   const { c, a } = useTheme();
   const insets = useSafeAreaInsets();
   const live = useLiveServer(owner, repo);
+  const requirements = useProjectRequirements();
   const { status, url, logs, error, message } = live.state;
   const [full, setFull] = useState(false);
   const [logsOpen, setLogsOpen] = useState(false);
@@ -233,6 +236,11 @@ export function LivePanel({ owner, repo, label, onTab }: { owner: string; repo: 
             : (message ?? "Your live server is stopped.")}
         </T>
         {error ? <T variant="small" color="danger" accessibilityRole="alert" selectable style={{ textAlign: "center" }}>{error}</T> : null}
+        {status === "failed" && (requirements?.kind === "database" || requirements?.kind === "service") ? (
+          <View style={{ alignSelf: "stretch", maxWidth: 480, padding: 12, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface }}>
+            <RequirementsSection compact value={requirements} />
+          </View>
+        ) : null}
         {status === "idle" || status === "stopped" ? <Btn label={status === "idle" ? "Start live server" : "Start again"} icon={Play} onPress={live.start} testID="button-start-live-server-body" /> : null}
         <Row style={{ flexWrap: "wrap", justifyContent: "center" }}>
           {logs ? <Btn label="Server logs" icon={Terminal} variant="secondary" size="sm" onPress={() => setLogsOpen(true)} testID="button-live-logs" /> : null}

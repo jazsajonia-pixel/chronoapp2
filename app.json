@@ -2,12 +2,12 @@
   "expo": {
     "name": "Chrono",
     "slug": "chronoapp2",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "chronoapp2",
     "userInterfaceStyle": "automatic",
-    "backgroundColor": "#080A10",
+    "backgroundColor": "#0B0D12",
     "ios": {
       "bundleIdentifier": "com.chrono.app2",
       "supportsTablet": true,
@@ -19,9 +19,9 @@
     "android": {
       "package": "com.chrono.app2",
       "softwareKeyboardLayoutMode": "resize",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
-        "backgroundColor": "#080A10",
+        "backgroundColor": "#FF7A3C",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -37,9 +37,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#080A10",
-          "image": "./assets/images/splash-wordmark.png",
-          "imageWidth": 140
+          "backgroundColor": "#0B0D12",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 96
         }
       ],
       "expo-secure-store",

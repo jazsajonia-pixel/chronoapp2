@@ -198,8 +198,10 @@ async function exec(name: ToolName, args: Record<string, unknown>, ws: Workspace
         throw new ToolError(`${path} is not valid JSON.`);
       }
       const pick = (k: string) => (pkg[k] && typeof pkg[k] === "object" ? JSON.stringify(pkg[k], null, 1) : "—");
+      const { analyzeRequirements, describeRequirements } = await import("@/features/project/requirements");
+      const reqs = await analyzeRequirements(overlayPaths(ws, proposal), (p) => overlayRead(ws, proposal, p).catch(() => null));
       return {
-        content: [`Detected project type: ${kind}`, `name: ${String(pkg.name ?? "—")}`, `type: ${String(pkg.type ?? "commonjs")}`, `scripts: ${pick("scripts")}`, `dependencies: ${pick("dependencies")}`, `devDependencies: ${pick("devDependencies")}`].join("\n"),
+        content: [`Detected project type: ${kind}`, `name: ${String(pkg.name ?? "—")}`, `type: ${String(pkg.type ?? "commonjs")}`, `scripts: ${pick("scripts")}`, `dependencies: ${pick("dependencies")}`, `devDependencies: ${pick("devDependencies")}`, "", describeRequirements(reqs)].join("\n"),
         proposal,
       };
     }
@@ -211,7 +213,10 @@ async function exec(name: ToolName, args: Record<string, unknown>, ws: Workspace
       const plan = await analyzeProject(paths, read);
       if (!plan.supported && plan.liveServer) {
         const { describeLiveDiagnostics } = await import("@/features/preview/live-diagnostics");
-        return { content: describeLiveDiagnostics(ws.liveDiagnostics?.(), plan.label), proposal };
+        const { analyzeRequirements, describeRequirements } = await import("@/features/project/requirements");
+        const reqs = await analyzeRequirements(paths, read);
+        const extra = reqs.kind === "database" || reqs.kind === "service" ? `\n\n${describeRequirements(reqs)}` : "";
+        return { content: describeLiveDiagnostics(ws.liveDiagnostics?.(), plan.label) + extra, proposal };
       }
       if (!plan.supported) return { content: `Preview not available: ${plan.label}. ${plan.reason}`, proposal };
       const page = rawPage ? cleanPath(rawPage) : undefined;

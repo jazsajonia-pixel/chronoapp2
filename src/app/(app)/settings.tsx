@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Pressable, View } from "react-native";
 import { router } from "expo-router";
-import { ChevronRight, ExternalLink, History, KeyRound, LogOut, Moon, Sparkles, Sun } from "lucide-react-native";
+import { ChevronRight, ExternalLink, GitBranch, History, KeyRound, LogOut, Moon, Sparkles, Sun } from "lucide-react-native";
 import * as WebBrowser from "expo-web-browser";
 import { ActiveProviderLink } from "@/features/ai/active-provider";
 import { BackendStatus } from "@/features/settings/backend-status";
@@ -82,6 +82,25 @@ export default function SettingsScreen() {
               <ListRow key="history" icon={History} title="Task history" subtitle="Every agent task on this device" onPress={() => router.push("/history")} right={chevron(c.mutedForeground)} testID="link-settings-history" />,
             ]}
           </Group>
+        </Section>
+
+        <Section title="Integrations">
+          <Group>
+            {[
+              <ListRow
+                key="github"
+                icon={GitBranch}
+                title="GitHub"
+                subtitle={session.mode === "github" ? `Connected as @${session.user.login} · repositories, branches, commits, pull requests` : "Not connected"}
+                onPress={() => void WebBrowser.openBrowserAsync("https://github.com/settings/applications")}
+                right={<ExternalLink size={15} color={c.mutedForeground} />}
+                testID="row-integration-github"
+              />,
+            ]}
+          </Group>
+          <T variant="tiny" testID="text-integrations-note">
+            Review or revoke Chrono's access on GitHub. Chrono doesn't connect to databases or hosting accounts; each project's Overview shows whether it needs a database and which variables it expects.
+          </T>
         </Section>
 
         <Section title="Account">
