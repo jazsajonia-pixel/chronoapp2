@@ -36,4 +36,11 @@ Record the device, Android version, APK tag and result for each line. Nothing he
 | 15 | Live server cleanup | Start live server, leave the project | Server is stopped (check the web Preview for the same repo shows idle/stopped) |
 | 16 | Git | Commit to a new branch, open a PR | PR created; nothing discarded |
 | 17 | Themes | Light, dark, system | All text readable in both |
-| 18 | Reduced motion | Enable "Remove animations" | No looping animations except loading indicators |
+| 18 | Reduced motion | Enable "Remove animations" | No looping animations except loading indicators; launch rail is a static segment |
+| 19 | Launch (1.2.0) | Cold start signed in; then airplane mode / slow network | Mark stays put from native splash to launch screen; rail only while loading; "Continue without waiting" after 8 s; no extra delay when ready |
+| 20 | Runtime needs | Open a Prisma/Drizzle repo and a static repo → Overview | DB repo: engine, migrations, variable names (no values); static repo: "Runs without a database." |
+| 21 | Integrations | Settings → Integrations → GitHub | Shows the connected account; opens GitHub's authorized-apps page |
+
+### Emulator QA (not a device test)
+
+Emulator runs use a temporary workflow on a `qa/*` branch: x86_64 release build pointed at a local mock backend (`EXPO_PUBLIC_CHRONO_API=http://10.0.2.2:8787/api`, cleartext enabled in the generated manifest only, a seeded QA session token), Android 14 `google_apis` emulator, screenshots + screen recordings via adb. The branch and workflow are deleted afterwards and never merged. Results do not replace the device checklist above.
