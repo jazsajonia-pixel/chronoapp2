@@ -5,24 +5,37 @@ export type AsyncState<T> =
   | { status: "success"; data: T; error?: undefined }
   | { status: "error"; data?: undefined; error: unknown };
 
-/** Minimal data-loading hook with retry. Ignores results from stale runs. */
-export function useAsync<T>(fn: () => Promise<T>, deps: readonly unknown[] = []) {
+/**
+ * Minimal data-loading hook with retry. Reruns when `deps` (primitives) change
+ * and ignores results from stale runs.
+ */
+export function useAsync<T>(fn: () => Promise<T>, deps: readonly (string | number | boolean | null | undefined)[] = []) {
   const [state, setState] = useState<AsyncState<T>>({ status: "loading" });
-  const run = useRef(0);
+  const [reloads, setReloads] = useState(0);
+  const fnRef = useRef(fn);
+  useEffect(() => {
+    fnRef.current = fn;
+  });
 
-  const execute = useCallback(() => {
-    const id = ++run.current;
+  // Switch back to loading in the same render the inputs change, not one frame later.
+  const token = JSON.stringify(deps) + "#" + reloads;
+  const [loadedFor, setLoadedFor] = useState(token);
+  if (loadedFor !== token) {
+    setLoadedFor(token);
     setState({ status: "loading" });
-    fn().then(
-      (data) => id === run.current && setState({ status: "success", data }),
-      (error: unknown) => id === run.current && setState({ status: "error", error }),
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
+  }
 
   useEffect(() => {
-    execute();
-  }, [execute]);
+    let live = true;
+    fnRef.current().then(
+      (data) => live && setState({ status: "success", data }),
+      (error: unknown) => live && setState({ status: "error", error }),
+    );
+    return () => {
+      live = false;
+    };
+  }, [token]);
 
-  return { ...state, retry: execute };
+  const retry = useCallback(() => setReloads((n) => n + 1), []);
+  return { ...state, retry };
 }

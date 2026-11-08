@@ -94,8 +94,8 @@ export function AppDrawer() {
     void AccessibilityInfo.isReduceMotionEnabled().then((v) => (reduceMotion.current = v)).catch(() => {});
   }, []);
 
+  if (open && !mounted) setMounted(true);
   useEffect(() => {
-    if (open) setMounted(true);
     Animated.timing(progress, {
       toValue: open ? 1 : 0,
       duration: reduceMotion.current ? 0 : open ? 240 : 190,

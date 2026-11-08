@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useCallback, useEffect, useRef, useState } from "react";
 import { useWorkspace } from "@/features/workspace/context";
 import { analyzeProject, type PreviewPlan, type PreviewPlanOk } from "./detect";
 import { BuildError, buildPreview, codeFrame, type BuildResult } from "./bundler";
@@ -46,7 +46,9 @@ export function locate(stack: string, sources: Map<string, string>): Pick<Runtim
 export function usePreview(opts: { assetUrl?: (path: string) => string | null }) {
   const ws = useWorkspace();
   const wsRef = useRef(ws);
-  wsRef.current = ws;
+  useLayoutEffect(() => {
+    wsRef.current = ws;
+  });
   const [state, setState] = useState<PreviewState>({ status: "analyzing" });
   const [page, setPage] = useState<string | null>(null);
   const [logs, setLogs] = useState<ConsoleEntry[]>([]);
@@ -57,7 +59,9 @@ export function usePreview(opts: { assetUrl?: (path: string) => string | null })
   const seq = useRef(0);
   const run = useRef(0);
   const assetUrl = useRef(opts.assetUrl);
-  assetUrl.current = opts.assetUrl;
+  useLayoutEffect(() => {
+    assetUrl.current = opts.assetUrl;
+  });
 
   const read = useCallback(async (p: string) => {
     const w = wsRef.current;

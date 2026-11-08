@@ -91,7 +91,7 @@ export default function SettingsScreen() {
                 key="github"
                 icon={GitBranch}
                 title="GitHub"
-                subtitle={session.mode === "github" ? `Connected as @${session.user.login} · repositories, branches, commits, pull requests` : "Not connected"}
+                subtitle={session.mode === "github" ? `Connected as @${session.user.login} · ${session.includePrivate ? "public and private repos" : "public repos"} · scopes: ${session.scopes.join(", ") || "none"}` : "Not connected"}
                 onPress={() => void WebBrowser.openBrowserAsync("https://github.com/settings/applications")}
                 right={<ExternalLink size={15} color={c.mutedForeground} />}
                 testID="row-integration-github"
@@ -99,7 +99,7 @@ export default function SettingsScreen() {
             ]}
           </Group>
           <T variant="tiny" testID="text-integrations-note">
-            Review or revoke Chrono's access on GitHub. Chrono doesn't connect to databases or hosting accounts; each project's Overview shows whether it needs a database and which variables it expects.
+            Review or revoke Chrono's access on GitHub. Chrono doesn't connect to databases or hosting accounts. Each project's Overview shows whether it needs a database and which variables it expects; values you add under Preview → Variables are encrypted and only passed to that repo's live server.
           </T>
         </Section>
 
@@ -148,3 +148,6 @@ export default function SettingsScreen() {
     </>
   );
 }
+
+// A crash here stays on this screen (Try again / Go home) instead of taking down the app.
+export { ScreenErrorBoundary as ErrorBoundary } from "@/components/error-boundary";

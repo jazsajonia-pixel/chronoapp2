@@ -1,7 +1,7 @@
 import { useCallback, useState, type ReactNode } from "react";
 import { Pressable, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
-import { ArrowUp, Bot, FolderGit2, MessageSquareText, MonitorSmartphone, Plus, Search, Sparkles } from "lucide-react-native";
+import { ArrowUp, Bot, CloudOff, FolderGit2, MessageSquareText, MonitorSmartphone, Plus, Search, Sparkles } from "lucide-react-native";
 import { useSession } from "@/stores/session";
 import { recentRepos, type RecentRepo } from "@/features/github/recent";
 import { recentAgentTasks, type RecentTask } from "@/features/agent/store";
@@ -56,7 +56,8 @@ function AskRow({ latest }: { latest?: RecentRepo }) {
 }
 
 export default function HomeScreen() {
-  const { session } = useSession();
+  const { session, reconnecting, refresh } = useSession();
+  const { c, a } = useTheme();
   const providers = useProviders();
   const skills = useSkills();
   const [recent, setRecent] = useState<RecentRepo[]>(() => recentRepos());
@@ -82,6 +83,13 @@ export default function HomeScreen() {
     <>
       <Header title="Chrono" large menu leading={<LogoMark size={26} />} right={<IconBtn icon={Search} label="Search" size={48} onPress={openCommandPalette} testID="button-home-search" />} />
       <Screen>
+        {reconnecting ? (
+          <Row gap={10} testID="banner-reconnecting" style={{ marginTop: 8, padding: 12, borderRadius: RADIUS.md, borderWidth: 1, borderColor: c.border, backgroundColor: a("warning", 0.1) }}>
+            <CloudOff size={16} color={c.warning} />
+            <T variant="small" color="foreground" style={{ flex: 1 }}>Reconnecting to Chrono… Recent projects still open; GitHub actions wait until it's back.</T>
+            <T variant="small" color="primary" weight="semibold" onPress={() => void refresh()} suppressHighlighting testID="button-reconnect">Retry</T>
+          </Row>
+        ) : null}
         <View style={{ gap: 6, paddingTop: 8 }}>
           <T style={{ fontSize: 28, lineHeight: 34, fontFamily: FONT.semibold, letterSpacing: -0.4 }}>{first ? `${greeting()}, ${first}.` : `${greeting()}.`}</T>
           <T variant="small" style={{ fontSize: 15, lineHeight: 21 }}>Ask for a change, review the diff, preview it, ship it.</T>
@@ -145,3 +153,6 @@ export default function HomeScreen() {
     </>
   );
 }
+
+// A crash here stays on this screen (Try again / Go home) instead of taking down the app.
+export { ScreenErrorBoundary as ErrorBoundary } from "@/components/error-boundary";

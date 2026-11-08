@@ -19,7 +19,13 @@ export function useProviders() {
     );
   }, []);
 
-  useEffect(reload, [reload]);
+  useEffect(() => {
+    // State starts as "loading", so the first fetch needs no synchronous update.
+    listProviders().then(
+      (data) => setState({ status: "ready", data }),
+      (error: unknown) => setState({ status: "error", error }),
+    );
+  }, []);
 
   /** Mutations return the full new list — apply it without refetching. */
   const apply = useCallback((data: ProvidersResponse) => setState({ status: "ready", data }), []);

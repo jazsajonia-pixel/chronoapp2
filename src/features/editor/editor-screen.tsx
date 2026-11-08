@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useCallback, useEffect, useRef, useState } from "react";
 import { Keyboard, Linking, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { ExternalLink, FileDiff, FolderTree, MoreHorizontal, PenLine, Redo2, RotateCcw, Save, Search, Trash2, Undo2, WrapText, X, type LucideIcon } from "lucide-react-native";
 import { describeError } from "@/lib/errors";
@@ -54,7 +54,7 @@ export function EditorScreen({ onOpenSearch, onGit, visible }: { onOpenSearch: (
   const marks = useFileMarks();
   const active = ws.data.active;
   const editor = useRef<CodeEditorHandle>(null);
-  const [load, setLoad] = useState<Load | null>(null);
+  const [load, setLoad] = useState<Load | null>(() => (active ? { path: active, status: "loading" } : null));
   const [historyInfo, setHistory] = useState<HistoryInfo>({ canUndo: false, canRedo: false });
   const [findOpen, setFindOpen] = useState(false);
   const [findCount, setFindCount] = useState({ total: 0, current: 0 });
@@ -69,7 +69,9 @@ export function EditorScreen({ onOpenSearch, onGit, visible }: { onOpenSearch: (
 
   // An invalidated active file (revert, agent edit, rename…) is reloaded from the workspace.
   const activeRef = useRef(active);
-  activeRef.current = active;
+  useLayoutEffect(() => {
+    activeRef.current = active;
+  });
   useEffect(
     () =>
       ws.editorStates.subscribe((e) => {
@@ -79,13 +81,15 @@ export function EditorScreen({ onOpenSearch, onGit, visible }: { onOpenSearch: (
   );
 
   // Load the active file's buffer (draft → saved → base).
+  const loadKey = `${active ?? ""}#${reload}`;
+  const [loadingFor, setLoadingFor] = useState(loadKey);
+  if (loadingFor !== loadKey) {
+    setLoadingFor(loadKey);
+    setLoad((l) => (!active ? null : l && l.path === active && l.status === "ready" ? l : { path: active, status: "loading" }));
+  }
   useEffect(() => {
-    if (!active) {
-      setLoad(null);
-      return;
-    }
+    if (!active) return;
     let cancelled = false;
-    setLoad((l) => (l && l.path === active && l.status === "ready" ? l : { path: active, status: "loading" }));
     ws.getBuffer(active).then(
       (doc) => !cancelled && setLoad({ path: active, status: "ready", doc, epoch: ws.editorStates.epoch(active) }),
       (error: unknown) => !cancelled && setLoad({ path: active, status: "error", error }),

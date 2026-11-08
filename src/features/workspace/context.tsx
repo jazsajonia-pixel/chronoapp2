@@ -118,7 +118,7 @@ export function WorkspaceProvider({ source, children }: { source: WorkspaceSourc
   const [storageOk, setStorageOk] = useState(true);
   const [jump, setJump] = useState<JumpTarget | null>(null);
   const baseCache = useRef(new Map<string, string>());
-  const editorStates = useRef(new EditorStateCache());
+  const [editorStates] = useState(() => new EditorStateCache());
   const dataRef = useRef(state.data);
 
   const basePathSet = useMemo(() => new Set(source.basePaths), [source.basePaths]);
@@ -229,14 +229,14 @@ export function WorkspaceProvider({ source, children }: { source: WorkspaceSourc
       getSaved,
       getBuffer,
       peekBuffer,
-      editorStates: editorStates.current,
+      editorStates: editorStates,
       jump,
       openFile: (path, line) => {
         update((d) => openTabModel(d, path));
         if (line) setJump((j) => ({ path, line, nonce: (j?.nonce ?? 0) + 1 }));
       },
       closeFile: (path) => {
-        editorStates.current.invalidate(path);
+        editorStates.invalidate(path);
         update((d) => closeTabModel(d, path));
       },
       updateDraft: (path, content) =>
@@ -255,14 +255,14 @@ export function WorkspaceProvider({ source, children }: { source: WorkspaceSourc
         // Validate synchronously so the caller can show the error inline.
         const next = createFileModel(dataRef.current, basePathSet, raw, content);
         const path = next.active!;
-        editorStates.current.invalidate(path);
+        editorStates.invalidate(path);
         update(() => next);
         return path;
       },
       remove: async (path) => {
         const base = basePathSet.has(path) || dataRef.current.changes[path]?.status === "deleted" ? await getBase(path).catch(() => "") : null;
         const added = dataRef.current.changes[path]?.status === "added" && !basePathSet.has(path);
-        editorStates.current.invalidate(path);
+        editorStates.invalidate(path);
         update((d) => deleteFileModel(d, path, added ? null : base));
       },
       rename: async (from, rawTo) => {
@@ -272,34 +272,34 @@ export function WorkspaceProvider({ source, children }: { source: WorkspaceSourc
         const baseFrom = addedOnly ? null : await getBase(from).catch(() => "");
         const baseTo = basePathSet.has(to) ? await getBase(to).catch(() => "") : null;
         const next = renameFileModel(dataRef.current, basePathSet, from, to, content, baseFrom, baseTo);
-        editorStates.current.invalidate(from);
-        editorStates.current.invalidate(to);
+        editorStates.invalidate(from);
+        editorStates.invalidate(to);
         update(() => next);
         return to;
       },
       revert: (path) => {
-        editorStates.current.invalidate(path);
+        editorStates.invalidate(path);
         update((d) => revertFileModel(d, path));
       },
       revertAll: () => {
-        editorStates.current.clear();
+        editorStates.clear();
         update((d) => revertAllModel(d));
         setState((s) => ({ ...s, baseMoved: false }));
       },
       committed: (paths, { newBaseSha, moveTo }) => {
-        for (const p of paths) editorStates.current.invalidate(p);
+        for (const p of paths) editorStates.invalidate(p);
         const next = afterCommit(dataRef.current, paths, newBaseSha);
         if (moveTo && newBaseSha) {
           // The new branch starts at our commit; nothing is mounted for it yet, so write it directly.
           saveWorkspace(moveTo, next);
-          editorStates.current.clear();
+          editorStates.clear();
           update((d) => ({ ...revertAllModel(d), tabs: [], active: null }));
         } else {
           update(() => next);
         }
       },
     };
-  }, [state, storageOk, source, basePathSet, getBase, peekBase, getSaved, getBuffer, peekBuffer, update, jump]);
+  }, [state, storageOk, source, basePathSet, getBase, peekBase, getSaved, getBuffer, peekBuffer, update, jump, editorStates]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

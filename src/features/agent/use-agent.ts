@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { useWorkspace } from "@/features/workspace/context";
 import { getLiveDiagnostics } from "@/features/preview/live-diagnostics";
@@ -28,7 +28,9 @@ const ATTACH_LIMIT = 40_000;
 export function useAgent(project: AgentProject) {
   const ws = useWorkspace();
   const wsRef = useRef(ws);
-  wsRef.current = ws;
+  useLayoutEffect(() => {
+    wsRef.current = ws;
+  });
   const key = ws.source.storageKey;
 
   const [tasks, setTasks] = useState<AgentTask[]>(() => loadTasks(key));
@@ -36,7 +38,9 @@ export function useAgent(project: AgentProject) {
   const [storageOk, setStorageOk] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
   const tasksRef = useRef(tasks);
-  tasksRef.current = tasks;
+  useLayoutEffect(() => {
+    tasksRef.current = tasks;
+  });
 
   useEffect(() => {
     const t = setTimeout(() => setStorageOk(saveTasks(key, tasks)), 300);

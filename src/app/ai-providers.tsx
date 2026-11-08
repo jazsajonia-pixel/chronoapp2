@@ -92,3 +92,6 @@ export default function AIProvidersScreen() {
     </>
   );
 }
+
+// A crash here stays on this screen (Try again / Go home) instead of taking down the app.
+export { ScreenErrorBoundary as ErrorBoundary } from "@/components/error-boundary";

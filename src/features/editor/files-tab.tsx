@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { ChevronRight } from "lucide-react-native";
 import { useWorkspace } from "@/features/workspace/context";
@@ -17,17 +17,14 @@ export function FilesTab({ onGit }: { onGit: () => void }) {
   const { c } = useTheme();
   const ws = useWorkspace();
   const [view, setView] = useState<View_>(() => (ws.data.active ? "editor" : "tree"));
-  useEffect(() => {
-    if (view === "editor" && !ws.data.active) setView("tree");
-  }, [view, ws.data.active]);
-  // Files opened from elsewhere (palette, Git, preview errors, agent) switch to the editor.
-  const prevActive = useRef(ws.data.active);
-  const prevJump = useRef(ws.jump);
-  useEffect(() => {
-    if ((ws.data.active && ws.data.active !== prevActive.current) || (ws.jump && ws.jump !== prevJump.current)) setView("editor");
-    prevActive.current = ws.data.active;
-    prevJump.current = ws.jump;
-  }, [ws.data.active, ws.jump]);
+  // Files opened from elsewhere (palette, Git, preview errors, agent) switch to the editor;
+  // closing the last file goes back to the tree. Adjusted during render rather than in an effect.
+  const [seen, setSeen] = useState({ active: ws.data.active, jump: ws.jump });
+  if (seen.active !== ws.data.active || seen.jump !== ws.jump) {
+    setSeen({ active: ws.data.active, jump: ws.jump });
+    if ((ws.data.active && ws.data.active !== seen.active) || (ws.jump && ws.jump !== seen.jump)) setView("editor");
+  }
+  if (view === "editor" && !ws.data.active) setView("tree");
 
   const open = (path: string, line?: number) => {
     ws.openFile(path, line);

@@ -220,16 +220,23 @@ export function AgentPanel({ project, onTab }: { project: AgentProject; active?:
     setPrefill(p);
   };
   useEffect(() => {
-    consumePrefill(prefill);
+    // The first hand-off is already in state (see useState above); just claim it.
+    if (prefill) {
+      safeStorage.remove(`agent-prefill:${ws.source.storageKey}`, "session");
+      agent.startNew();
+    }
     // The AI tab stays mounted, so later hand-offs arrive as events.
     return on("agent-prefill", (d) => {
       const key = (d as { storageKey?: string } | undefined)?.storageKey;
       if (key === ws.source.storageKey) consumePrefill(readPrefill(key));
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
+  // Switching conversations picks up that conversation's mode.
+  const [seenTaskId, setSeenTaskId] = useState(task?.id);
+  if (seenTaskId !== task?.id) {
+    setSeenTaskId(task?.id);
     if (task && !prefill) setMode(task.mode);
-  }, [task?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   // Follow the conversation as it grows.
   const size = task ? task.messages.length + Object.keys(task.proposal).length + (task.activities ?? []).length + task.status.length : 0;

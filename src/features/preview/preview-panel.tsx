@@ -9,6 +9,7 @@ import type { WorkspaceTab } from "@/lib/nav";
 import { Btn, IconBtn, Row, Sheet, T } from "@/ui/kit";
 import { FONT, RADIUS, useTheme, type ColorName } from "@/ui/theme";
 import { LivePanel } from "./live-panel";
+import { AndroidReleases } from "./live-extras";
 import { usePreview, type ConsoleEntry, type RuntimeError } from "./use-preview";
 import { prefillAgent } from "./agent-prefill";
 import { DESKTOP_VIEWPORT, DeviceFrame, DeviceToggle, type Device } from "./viewport";
@@ -113,7 +114,7 @@ export function PreviewPanel({ owner, repo, assetUrl, onTab }: { owner: string; 
   };
 
   if (state.status === "unsupported" && state.plan.liveServer) {
-    return <LivePanel key={ws.source.storageKey + "#" + ws.source.commitSha} owner={owner} repo={repo} label={state.plan.label} onTab={onTab} />;
+    return <LivePanel key={ws.source.storageKey + "#" + ws.source.commitSha} owner={owner} repo={repo} label={state.plan.label} runtime={state.plan.live && state.plan.live.kind !== "unsupported" ? state.plan.live : undefined} onTab={onTab} />;
   }
 
   if (state.status === "unsupported") {
@@ -125,7 +126,8 @@ export function PreviewPanel({ owner, repo, assetUrl, onTab }: { owner: string; 
         <T variant="h2" style={{ textAlign: "center" }}>{state.plan.label} can't be previewed in the app</T>
         <T variant="small" style={{ textAlign: "center" }}>{state.plan.reason}</T>
         <T variant="small" style={{ textAlign: "center" }}>{state.plan.hint}</T>
-        <T variant="tiny" style={{ textAlign: "center" }}>In the app: HTML/CSS/JS, Vite (React, Preact, TypeScript), Create React App. Node projects with a dev or start script run on the Live server.</T>
+        {state.plan.live?.kind === "unsupported" && state.plan.live.android ? <AndroidReleases owner={owner} repo={repo} /> : null}
+        <T variant="tiny" style={{ textAlign: "center" }}>In the app: HTML/CSS/JS, Vite (React, Preact, TypeScript), Create React App. On the Live server: Node dev/start scripts, Flutter web, Dart servers, and Kotlin/Java with Gradle or Maven.</T>
         <Row style={{ marginTop: 8 }}>
           <Btn label="Back to code" icon={Code2} variant="secondary" onPress={() => onTab("files")} />
           <Btn label="Check again" icon={RotateCw} variant="secondary" onPress={p.rebuild} />

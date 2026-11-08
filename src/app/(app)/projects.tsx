@@ -58,9 +58,8 @@ export default function ProjectsScreen() {
   const [status, setStatus] = useState<"loading" | "idle" | "more" | "error" | "refreshing">("loading");
   const [error, setError] = useState<unknown>(null);
 
-  const load = useCallback((page: number, refreshing = false) => {
-    setStatus(refreshing ? "refreshing" : page === 1 ? "loading" : "more");
-    setError(null);
+  // Only fetches; state already starts as "loading", so the first load needs no synchronous update.
+  const fetchPage = useCallback((page: number) => {
     githubApi.repos(page).then(
       (res) => {
         setPages((p) => (page === 1 ? [res.repos] : [...p, res.repos]));
@@ -73,7 +72,15 @@ export default function ProjectsScreen() {
       },
     );
   }, []);
-  useEffect(() => load(1), [load]);
+  const load = useCallback(
+    (page: number, refreshing = false) => {
+      setStatus(refreshing ? "refreshing" : page === 1 ? "loading" : "more");
+      setError(null);
+      fetchPage(page);
+    },
+    [fetchPage],
+  );
+  useEffect(() => fetchPage(1), [fetchPage]);
 
   const repos = useMemo(() => pages.flat(), [pages]);
   const needle = query.trim().toLowerCase();
@@ -170,3 +177,6 @@ export default function ProjectsScreen() {
     </>
   );
 }
+
+// A crash here stays on this screen (Try again / Go home) instead of taking down the app.
+export { ScreenErrorBoundary as ErrorBoundary } from "@/components/error-boundary";

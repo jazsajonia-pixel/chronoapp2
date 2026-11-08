@@ -4,7 +4,7 @@ import * as Clipboard from "expo-clipboard";
 import { WebView } from "react-native-webview";
 import type { ShouldStartLoadRequest } from "react-native-webview/lib/WebViewTypes";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { AlertTriangle, Code2, Copy, ExternalLink, Globe, Maximize2, Minimize2, Play, RotateCw, ServerOff, Share2, Sparkles, Square, Terminal, X } from "lucide-react-native";
+import { AlertTriangle, Code2, Copy, ExternalLink, Globe, KeyRound, Maximize2, Minimize2, Play, RotateCw, ServerOff, Share2, Sparkles, Square, Terminal, X } from "lucide-react-native";
 import type { WorkspaceTab } from "@/lib/nav";
 import { useWorkspace } from "@/features/workspace/context";
 import { RequirementsSection } from "@/features/project/requirements-section";
@@ -12,6 +12,8 @@ import { useProjectRequirements } from "@/features/project/use-requirements";
 import { Btn, IconBtn, Row, Sheet, T, toast } from "@/ui/kit";
 import { FONT, RADIUS, useTheme, type ColorName } from "@/ui/theme";
 import { useLiveServer } from "./use-live-server";
+import { LiveEnvSheet } from "./live-extras";
+import { isHeavyRuntime, liveStartEstimate, type LiveRuntime } from "@/lib/live-runtime";
 import { prefillAgent } from "./agent-prefill";
 import { DESKTOP_VIEWPORT, DeviceFrame, DeviceToggle, type Device } from "./viewport";
 import {
@@ -28,8 +30,9 @@ import {
 
 const LEVEL_COLOR: Record<LiveConsoleEntry["level"], ColorName> = { log: "foreground", debug: "mutedForeground", info: "primary", warn: "warning", error: "danger" };
 
-const DISCLOSURE =
-  "Chrono copies current editor files, including unsaved edits, into an isolated Vercel Sandbox. The server expires after 10 minutes. Anyone with the preview URL can view the site, so do not put secrets in project files.";
+function disclosure(minutes: number): string {
+  return `Chrono copies current editor files, including unsaved edits, into an isolated Vercel Sandbox. The server expires after ${minutes} minutes. Anyone with the preview URL can view the site, so keep secrets out of project files; add development credentials under Preview variables instead.`;
+}
 
 function originOf(url: string): string | null {
   const m = /^(https:\/\/[^/?#]+)/i.exec(url);
@@ -40,10 +43,14 @@ function originOf(url: string): string | null {
  * Preview for projects that need a real server (Next.js, Express, Astro…): the project's own dev/start
  * script runs in a Vercel Sandbox via the Chrono backend, and this WebView only loads the sandbox URL.
  */
-export function LivePanel({ owner, repo, label, onTab }: { owner: string; repo: string; label: string; onTab: (t: WorkspaceTab) => void }) {
+export function LivePanel({ owner, repo, label, runtime, onTab }: { owner: string; repo: string; label: string; runtime?: LiveRuntime; onTab: (t: WorkspaceTab) => void }) {
   const { c, a } = useTheme();
   const insets = useSafeAreaInsets();
-  const live = useLiveServer(owner, repo);
+  const live = useLiveServer(owner, repo, runtime);
+  const heavy = runtime ? isHeavyRuntime(runtime) : false;
+  const minutes = live.state.minutes ?? (heavy ? 20 : 10);
+  const DISCLOSURE = disclosure(minutes);
+  const [envOpen, setEnvOpen] = useState(false);
   const requirements = useProjectRequirements();
   const { status, url, logs, error, message } = live.state;
   const [full, setFull] = useState(false);
@@ -102,11 +109,17 @@ export function LivePanel({ owner, repo, label, onTab }: { owner: string; repo: 
   const errorCount = entries.filter((e) => e.level === "error").length;
   const latestError = runtimeErrors.length > errorDismissed ? runtimeErrors[runtimeErrors.length - 1] : undefined;
 
-  // Same as the website: opening Preview on a server project starts it once; failures wait for Retry.
+  // Same as the website: a Node project starts once when Preview opens; failures wait for Retry.
+  // Flutter, Dart and JVM builds take minutes, so they wait for Start.
   useEffect(() => {
-    if (status === "idle") void start();
-  }, [status, start]);
-  useEffect(() => setLoadError(null), [url, live.frameKey]);
+    if (status === "idle" && !heavy) void start();
+  }, [status, start, heavy]);
+  const frameId = `${url ?? ""}#${live.frameKey}`;
+  const [seenFrame, setSeenFrame] = useState(frameId);
+  if (seenFrame !== frameId) {
+    setSeenFrame(frameId);
+    setLoadError(null);
+  }
 
   const statusText =
     status === "running" ? "Running"
@@ -153,6 +166,7 @@ export function LivePanel({ owner, repo, label, onTab }: { owner: string; repo: 
       ) : (
         <Btn label={status === "failed" ? "Retry" : "Start"} icon={Play} size="sm" onPress={live.start} disabled={transitioning} testID="button-start-live-server" />
       )}
+      {!running ? <IconBtn icon={KeyRound} label="Preview variables" size={38} onPress={() => setEnvOpen(true)} testID="button-live-env" /> : null}
       <IconBtn icon={full ? Minimize2 : Maximize2} label={full ? "Exit full screen" : "Full screen"} size={38} onPress={() => setFull(!full)} testID="button-fullscreen" />
     </Row>
   );
@@ -232,9 +246,10 @@ export function LivePanel({ owner, repo, label, onTab }: { owner: string; repo: 
           {status === "starting" ? (message ?? "Starting your project…")
             : status === "failed" ? (message ?? "The live server could not start.")
             : status === "stopping" ? "Stopping your server…"
-            : status === "idle" ? "Run this project's dev server in a cloud sandbox."
+            : status === "idle" ? (runtime && heavy ? `Build and run this ${runtime.label} project in a cloud sandbox.` : "Run this project's dev server in a cloud sandbox.")
             : (message ?? "Your live server is stopped.")}
         </T>
+        {status === "idle" && runtime && heavy ? <T variant="small" style={{ textAlign: "center" }}>First start takes {liveStartEstimate(runtime)}.</T> : null}
         {error ? <T variant="small" color="danger" accessibilityRole="alert" selectable style={{ textAlign: "center" }}>{error}</T> : null}
         {status === "failed" && (requirements?.kind === "database" || requirements?.kind === "service") ? (
           <View style={{ alignSelf: "stretch", maxWidth: 480, padding: 12, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface }}>
@@ -245,6 +260,7 @@ export function LivePanel({ owner, repo, label, onTab }: { owner: string; repo: 
         <Row style={{ flexWrap: "wrap", justifyContent: "center" }}>
           {logs ? <Btn label="Server logs" icon={Terminal} variant="secondary" size="sm" onPress={() => setLogsOpen(true)} testID="button-live-logs" /> : null}
           {status === "failed" && (logs || error) ? <Btn label="Fix with AI" icon={Sparkles} size="sm" onPress={() => askAi()} testID="button-live-fix-with-ai" /> : null}
+          <Btn label="Variables" icon={KeyRound} variant="secondary" size="sm" onPress={() => setEnvOpen(true)} testID="button-live-env-body" />
           <Btn label="Back to code" icon={Code2} variant="secondary" size="sm" onPress={() => onTab("files")} />
         </Row>
         <T variant="tiny" style={{ textAlign: "center", maxWidth: 420 }}>{label} · {DISCLOSURE}</T>
@@ -259,7 +275,7 @@ export function LivePanel({ owner, repo, label, onTab }: { owner: string; repo: 
       {!full && status === "running" ? (
         <Pressable onPress={() => setLogsOpen(true)} accessibilityRole="button" accessibilityLabel="Server logs" style={{ minHeight: 32, justifyContent: "center", paddingHorizontal: 12, borderTopWidth: 1, borderTopColor: c.border }}>
           <T variant="tiny" numberOfLines={1}>
-            Vercel Sandbox · public link · includes unsaved edits{live.state.files ? ` · ${live.state.files} files` : ""} · expires after 10 min · logs
+            Vercel Sandbox · public link · includes unsaved edits{live.state.files ? ` · ${live.state.files} files` : ""} · expires after {minutes} min · logs
           </T>
         </Pressable>
       ) : null}
@@ -295,6 +311,8 @@ export function LivePanel({ owner, repo, label, onTab }: { owner: string; repo: 
           </View>
         )}
       </Sheet>
+
+      <LiveEnvSheet owner={owner} repo={repo} open={envOpen} onClose={() => setEnvOpen(false)} suggested={(requirements?.env ?? []).filter((e) => e.database || e.secret).map((e) => e.name).slice(0, 8)} />
 
       <Sheet open={logsOpen} onClose={() => setLogsOpen(false)} title="Server logs" description={DISCLOSURE}>
         {logs ? (

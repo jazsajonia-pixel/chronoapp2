@@ -24,6 +24,7 @@ export function RequirementsSection({ compact = false, value }: { compact?: bool
       <Row center={false} gap={8}>
         <Icon size={16} color={tone} style={{ marginTop: 1 }} />
         <T variant="small" color="foreground" weight="medium" style={{ flex: 1 }} testID="text-requirements-summary">{r.summary}</T>
+        {r.confidence !== "high" ? <T variant="tiny" testID="text-requirements-confidence">{r.confidence === "medium" ? "Likely" : "Best guess"}</T> : null}
       </Row>
       {r.kind !== "none" && (r.migrations.length > 0 || r.engines.length > 0) && !compact ? (
         <T variant="tiny">
@@ -41,7 +42,7 @@ export function RequirementsSection({ compact = false, value }: { compact?: bool
       ) : null}
       {r.kind === "database" || r.kind === "service" ? (
         <T variant="tiny" testID="text-requirements-preview-note">
-          Live preview starts without environment variables, so {r.kind === "database" ? "database calls" : "calls to this service"} fail there. Pages that don’t touch it still load.
+          The live preview only gets variables you save under Preview → Preview variables. Until then, {r.kind === "database" ? "database calls" : "calls to this service"} fail there; pages that don’t touch it still load.
         </T>
       ) : null}
       {!compact && r.steps.length ? (

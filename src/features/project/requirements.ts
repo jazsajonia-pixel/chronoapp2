@@ -54,6 +54,12 @@ export interface ProjectRequirements {
   summary: string;
   /** What the user needs to provide or run, in order. */
   steps: string[];
+  /**
+   * How sure the result is: "high" when a manifest or schema names the database/service, "medium"
+   * when only migrations, config or env names point to it, "low" for "none" found by a shallow scan
+   * of a project with server code.
+   */
+  confidence: "high" | "medium" | "low";
 }
 
 type Read = (path: string) => Promise<string | null>;
@@ -88,6 +94,31 @@ const DEP_HINTS: { dep: string | RegExp; tool: string; engine?: DbEngine; provid
   { dep: "firebase", tool: "Firebase", provider: "Firebase", service: true },
 ];
 
+/** Dependencies in non-Node manifests: pubspec.yaml (Dart/Flutter), Gradle and Maven (Kotlin/Java), requirements/pyproject (Python), go.mod. */
+const MANIFEST_HINTS: { re: RegExp; tool: string; engine?: DbEngine; provider?: string; service?: boolean }[] = [
+  { re: /^\s*supabase_flutter\s*:|^\s*supabase\s*:/m, tool: "Supabase (Dart)", provider: "Supabase", service: true },
+  { re: /^\s*firebase_core\s*:|^\s*cloud_firestore\s*:/m, tool: "Firebase (Flutter)", provider: "Firebase", service: true },
+  { re: /^\s*postgres\s*:/m, tool: "postgres (Dart)", engine: "PostgreSQL" },
+  { re: /^\s*mongo_dart\s*:/m, tool: "mongo_dart", engine: "MongoDB" },
+  { re: /^\s*(sqflite|drift|sqlite3)\s*:/m, tool: "SQLite (Dart)", engine: "SQLite" },
+  { re: /spring-boot-starter-data-jpa|spring-boot-starter-jdbc/, tool: "Spring Data JPA/JDBC" },
+  { re: /org\.postgresql[:"' ]|<artifactId>postgresql<\/artifactId>/, tool: "PostgreSQL JDBC", engine: "PostgreSQL" },
+  { re: /mysql-connector|com\.mysql[:"' ]/, tool: "MySQL JDBC", engine: "MySQL" },
+  { re: /sqlite-jdbc/, tool: "SQLite JDBC", engine: "SQLite" },
+  { re: /spring-boot-starter-data-mongodb|mongodb-driver/, tool: "MongoDB (JVM)", engine: "MongoDB" },
+  { re: /spring-boot-starter-data-redis|jedis|lettuce-core/, tool: "Redis (JVM)", engine: "Redis" },
+  { re: /org\.jetbrains\.exposed|exposed-core/, tool: "Exposed" },
+  { re: /firebase-admin/, tool: "Firebase Admin", provider: "Firebase", service: true },
+  { re: /^(psycopg2?|psycopg\[|asyncpg)/m, tool: "psycopg/asyncpg", engine: "PostgreSQL" },
+  { re: /^(sqlalchemy|SQLAlchemy)/m, tool: "SQLAlchemy" },
+  { re: /^pymongo/m, tool: "pymongo", engine: "MongoDB" },
+  { re: /^supabase\b/m, tool: "Supabase (Python)", provider: "Supabase", service: true },
+  { re: /github\.com\/(jackc\/pgx|lib\/pq)/, tool: "pgx/pq", engine: "PostgreSQL" },
+  { re: /go\.mongodb\.org\/mongo-driver/, tool: "mongo-go-driver", engine: "MongoDB" },
+];
+const MANIFEST_FILE = /(^|\/)(pubspec\.yaml|build\.gradle(\.kts)?|pom\.xml|requirements\.txt|pyproject\.toml|go\.mod|gradle\/libs\.versions\.toml)$/;
+const SPRING_CONFIG = /(^|\/)src\/main\/resources\/application(-[a-z]+)?\.(properties|ya?ml)$/;
+
 const PRISMA_PROVIDERS: Record<string, DbEngine> = { postgresql: "PostgreSQL", postgres: "PostgreSQL", cockroachdb: "PostgreSQL", mysql: "MySQL", sqlite: "SQLite", mongodb: "MongoDB", sqlserver: "SQL Server" };
 const DRIZZLE_DIALECTS: Record<string, DbEngine> = { postgresql: "PostgreSQL", pg: "PostgreSQL", mysql: "MySQL", sqlite: "SQLite", turso: "SQLite" };
 
@@ -98,9 +129,9 @@ const PUBLIC_PREFIX = /^(NEXT_PUBLIC_|VITE_|PUBLIC_|EXPO_PUBLIC_|REACT_APP_|NUXT
 /** Runtime/tooling variables projects read but users never set. */
 const IGNORED_ENV = new Set(["NODE_ENV", "PORT", "HOST", "HOSTNAME", "CI", "VERCEL", "VERCEL_ENV", "VERCEL_URL", "DEV", "PROD", "MODE", "SSR", "BASE_URL", "TZ", "PWD", "HOME", "npm_package_version"]);
 
-const CODE_FILE = /\.(c|m)?[jt]sx?$/;
-const LIKELY_CONFIG = /(^|\/)(drizzle\.config|knexfile|ormconfig|data-source|db|database|prisma|supabase|env|config|server|index|app|main|auth|client)\.(c|m)?[jt]s$/i;
-const LIKELY_DIR = /(^|\/)(server|api|lib|db|database|src\/server|src\/lib|src\/db|app\/api|netlify\/functions|functions|backend)\//i;
+const CODE_FILE = /\.((c|m)?[jt]sx?|dart|kt|java|py|go)$/;
+const LIKELY_CONFIG = /(^|\/)(drizzle\.config|knexfile|ormconfig|data-source|db|database|prisma|supabase|env|config|settings|server|index|app|main|auth|client|application)\.((c|m)?[jt]s|dart|kt|java|py|go)$/i;
+const LIKELY_DIR = /(^|\/)(server|api|lib|bin|db|database|src\/server|src\/lib|src\/db|src\/main|app\/api|netlify\/functions|functions|backend)\//i;
 const MAX_SCANNED = 40;
 const MAX_SCAN_BYTES = 200_000;
 
@@ -135,6 +166,14 @@ export function envNamesInCode(text: string): string[] {
     /import\.meta\.env\.([A-Z][A-Z0-9_]{1,63})/g,
     /Deno\.env\.get\(\s*["'`]([A-Z][A-Z0-9_]{1,63})["'`]/g,
     /\benv\(\s*["']([A-Z][A-Z0-9_]{1,63})["']\s*\)/g,
+    // Python, JVM, Dart and Go equivalents.
+    /os\.environ(?:\.get)?[[(]\s*["']([A-Z][A-Z0-9_]{1,63})["']/g,
+    /os\.getenv\(\s*["']([A-Z][A-Z0-9_]{1,63})["']/g,
+    /System\.getenv\(\s*"([A-Z][A-Z0-9_]{1,63})"/g,
+    /Platform\.environment\[\s*["']([A-Z][A-Z0-9_]{1,63})["']\s*\]/g,
+    /dotenv\.env\[\s*["']([A-Z][A-Z0-9_]{1,63})["']\s*\]/g,
+    /String\.fromEnvironment\(\s*["']([A-Z][A-Z0-9_]{1,63})["']/g,
+    /os\.(?:Getenv|LookupEnv)\(\s*"([A-Z][A-Z0-9_]{1,63})"/g,
   ];
   for (const re of patterns) for (const m of text.matchAll(re)) out.add(m[1]!);
   return [...out];
@@ -152,7 +191,8 @@ export function envNamesInExample(text: string): string[] {
 
 function packageDirs(paths: readonly string[]): string[] {
   const dirs = paths.filter((p) => /(^|\/)package\.json$/.test(p) && !p.includes("node_modules/") && p.split("/").length <= 3).map((p) => p.slice(0, -"package.json".length));
-  return dirs.sort((a, b) => a.length - b.length).slice(0, 6);
+  // Root plus shallow workspaces (apps/web, packages/api…).
+  return dirs.sort((a, b) => a.length - b.length).slice(0, 10);
 }
 
 export async function analyzeRequirements(paths: readonly string[], read: Read): Promise<ProjectRequirements> {
@@ -163,6 +203,7 @@ export async function analyzeRequirements(paths: readonly string[], read: Read):
   const scripts: { name: string; command: string }[] = [];
   let service = false;
   let serverDb = false;
+  let strong = false;
 
   // 1) package.json files (root + shallow workspaces).
   for (const dir of packageDirs(paths)) {
@@ -177,6 +218,7 @@ export async function analyzeRequirements(paths: readonly string[], read: Read):
       if (hint.provider) providers.add(hint.provider);
       if (hint.service) service = true;
       else serverDb = true;
+      strong = true;
     }
     const s = (pkg.scripts ?? {}) as Record<string, unknown>;
     for (const [name, command] of Object.entries(s)) {
@@ -187,11 +229,41 @@ export async function analyzeRequirements(paths: readonly string[], read: Read):
     }
   }
 
+  // 1b) Dart/Flutter, Kotlin/Java, Python and Go manifests.
+  const manifests = paths.filter((p) => MANIFEST_FILE.test(p) && p.split("/").length <= 3).slice(0, 8);
+  for (const p of manifests) {
+    const text = await read(p);
+    if (!text) continue;
+    for (const hint of MANIFEST_HINTS) {
+      if (!hint.re.test(text)) continue;
+      tools.add(hint.tool);
+      if (hint.engine) engines.add(hint.engine);
+      if (hint.provider) providers.add(hint.provider);
+      if (hint.service) service = true;
+      else serverDb = true;
+      strong = true;
+    }
+  }
+  // Spring Boot configuration names the datasource and the variables behind it.
+  for (const p of paths.filter((x) => SPRING_CONFIG.test(x)).slice(0, 4)) {
+    const text = await read(p);
+    if (!text) continue;
+    if (/spring\.datasource\.url|datasource:\s*\n\s+url:/.test(text)) {
+      serverDb = true;
+      const url = /jdbc:(postgresql|mysql|sqlite|sqlserver)/.exec(text)?.[1];
+      if (url) engines.add(({ postgresql: "PostgreSQL", mysql: "MySQL", sqlite: "SQLite", sqlserver: "SQL Server" } as const)[url as "postgresql"]);
+    }
+    if (/spring\.data\.mongodb|mongodb:\/\//.test(text)) { serverDb = true; engines.add("MongoDB"); }
+    // Placeholders: ${DATABASE_URL} or ${DATABASE_URL:default}.
+    for (const m of text.matchAll(/\$\{([A-Z][A-Z0-9_]{1,63})(?::[^}]*)?\}/g)) addEnv(env, m[1]!, p);
+  }
+
   // 2) Schemas and configs that name the engine and the connection variable.
   const prismaSchemas = paths.filter((p) => /(^|\/)schema\.prisma$/.test(p) && !p.includes("node_modules/")).slice(0, 3);
   for (const p of prismaSchemas) {
     tools.add("Prisma");
     serverDb = true;
+    strong = true;
     const text = await read(p);
     if (!text) continue;
     const ds = /datasource\s+\w+\s*\{([\s\S]*?)\}/.exec(text)?.[1] ?? "";
@@ -203,6 +275,7 @@ export async function analyzeRequirements(paths: readonly string[], read: Read):
   for (const p of drizzleConfigs) {
     tools.add("Drizzle ORM");
     serverDb = true;
+    strong = true;
     const text = await read(p);
     if (!text) continue;
     const dialect = /dialect\s*:\s*["'`]([a-z]+)["'`]/.exec(text)?.[1] ?? /driver\s*:\s*["'`]([a-z]+)["'`]/.exec(text)?.[1];
@@ -256,6 +329,8 @@ export async function analyzeRequirements(paths: readonly string[], read: Read):
   const kind: RequirementKind = serverDb ? (sqliteOnly ? "local" : "database") : service ? "service" : "none";
   const engineList = [...engines];
   const toolList = [...tools];
+  const hasServerCode = paths.some((p) => LIKELY_DIR.test(p) && CODE_FILE.test(p));
+  const confidence: ProjectRequirements["confidence"] = kind === "none" ? (hasServerCode ? "low" : "high") : strong ? "high" : "medium";
 
   return {
     kind,
@@ -268,6 +343,7 @@ export async function analyzeRequirements(paths: readonly string[], read: Read):
     scripts: scripts.slice(0, 8),
     summary: summarize(kind, engineList, toolList, [...providers]),
     steps: stepsFor(kind, engineList, dbVars, envList, migrations, scripts, envExample),
+    confidence,
   };
 }
 
@@ -320,6 +396,7 @@ function stepsFor(
     steps.push(`Create the schema with "npm run ${scripts[0]!.name}" on the development database.`);
   }
   if (envExample) steps.push(`${envExample} lists every variable the project expects.`);
+  if (kind === "database" || kind === "service") steps.push("For the live preview, add these under Preview → Preview variables. Chrono encrypts them and passes them only to that server.");
   return steps;
 }
 
@@ -333,7 +410,8 @@ export function describeRequirements(r: ProjectRequirements): string {
   if (r.migrations.length) lines.push(`Migrations: ${r.migrations.map((m) => `${m.count} × ${m.tool} in ${m.dir}`).join("; ")}`);
   if (r.scripts.length) lines.push(`DB scripts: ${r.scripts.map((s) => `${s.name} → ${s.command}`).join("; ")}`);
   if (r.env.length) lines.push(`Env vars (names only): ${r.env.slice(0, 30).map((e) => `${e.name}${e.secret ? " [secret]" : ""}${e.public ? " [public]" : ""}`).join(", ")}`);
-  lines.push("Live preview sandboxes start without environment variables, so database calls fail there until a development connection is configured.");
+  lines.push(`Detection confidence: ${r.confidence}.`);
+  lines.push("Live preview sandboxes get only the Preview variables the user saved for this repository (names visible in the Preview tab, values never shown); database calls fail until a development connection is saved there.");
   lines.push(...r.steps.map((s, i) => `${i + 1}. ${s}`));
   return lines.join("\n");
 }

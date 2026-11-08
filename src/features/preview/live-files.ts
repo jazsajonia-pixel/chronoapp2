@@ -13,7 +13,7 @@ const OMIT_FILES = new Set([".npmrc", ".yarnrc", ".pypirc", ".netrc", "credentia
 const SECRET_EXTENSIONS = new Set(["pem", "key", "p12", "pfx", "jks", "keystore"]);
 const BINARY_EXTENSIONS = new Set([
   "png", "jpg", "jpeg", "gif", "webp", "ico", "pdf", "zip", "gz", "mp4", "mov", "webm", "woff", "woff2", "ttf", "otf", "eot", "wasm", "psd",
-  "sketch", "sqlite", "db", "avif", "bmp", "tif", "tiff", "heic", "jfif", "mp3", "wav", "ogg", "m4a", "flac", "glb", "bin",
+  "sketch", "sqlite", "db", "avif", "bmp", "tif", "tiff", "heic", "jfif", "mp3", "wav", "ogg", "m4a", "flac", "glb", "bin", "jar",
 ]);
 const SKIPPABLE = new Set<string>(["NOT_FOUND", "BINARY_FILE", "FILE_TOO_LARGE"]);
 
@@ -64,10 +64,13 @@ export interface CollectedFiles {
  * Read the workspace (edits included, via `read`) with bounded concurrency. Files GitHub can't serve
  * as text become server-copied assets or are skipped; any other failure names the file.
  */
-export async function collectLiveFiles(paths: readonly string[], read: (path: string) => Promise<string>, signal?: { cancelled: boolean }): Promise<CollectedFiles> {
+export async function collectLiveFiles(paths: readonly string[], read: (path: string) => Promise<string>, signal?: { cancelled: boolean }, skipTopFolders: readonly string[] = []): Promise<CollectedFiles> {
   const assets: string[] = [];
   const text: string[] = [];
+  // Platform folders the runtime never builds (android/ and ios/ for a Flutter web build…).
+  const skip = new Set(skipTopFolders);
   for (const p of paths) {
+    if (skip.has(p.split("/")[0]!)) continue;
     const kind = classifyLiveFile(p);
     if (kind === "asset") assets.push(p);
     else if (kind === "text") text.push(p);
@@ -125,6 +128,10 @@ export interface LiveServerResponse {
   assets?: number;
   assetBytes?: number;
   skippedAssets?: string[];
+  /** Sandbox lifetime in minutes (10 for Node, 20 for SDK runtimes). */
+  minutes?: number;
+  /** Names (never values) of the saved preview variables passed to this start. */
+  env?: string[];
 }
 
 export interface LiveServerState extends LiveServerResponse {
@@ -142,7 +149,8 @@ export function sanitizeLiveResponse(raw: unknown): LiveServerResponse | null {
   if (typeof r.url === "string" && /^https:\/\/[^\s]+$/i.test(r.url)) out.url = r.url;
   if (typeof r.message === "string") out.message = r.message;
   if (typeof r.logs === "string") out.logs = r.logs.slice(-20_000);
-  for (const k of ["files", "bytes", "assets", "assetBytes"] as const) if (typeof r[k] === "number") out[k] = r[k] as number;
+  for (const k of ["files", "bytes", "assets", "assetBytes", "minutes"] as const) if (typeof r[k] === "number") out[k] = r[k] as number;
   if (Array.isArray(r.skippedAssets)) out.skippedAssets = r.skippedAssets.filter((s): s is string => typeof s === "string").slice(0, 50);
+  if (Array.isArray(r.env)) out.env = r.env.filter((s): s is string => typeof s === "string").slice(0, 40);
   return out;
 }

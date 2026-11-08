@@ -50,9 +50,13 @@ export function CommandPalette() {
   const [query, setQuery] = useState("");
   const [repos, setRepos] = useState<RepoSummary[]>([]);
 
+  const [wasOpen, setWasOpen] = useState(open);
+  if (wasOpen !== open) {
+    setWasOpen(open);
+    if (open) setQuery("");
+  }
   useEffect(() => {
     if (!open) return;
-    setQuery("");
     if (isAuthed) {
       repoCache ??= githubApi
         .repos(1)

@@ -80,3 +80,31 @@ describe("env name extraction", () => {
     expect(envNamesInExample("# comment\nexport FOO=1\nBAR=\n  BAZ = x\nnot a line")).toEqual(["FOO", "BAR", "BAZ"]);
   });
 });
+
+describe("analyzeRequirements beyond Node", () => {
+  const reader = (files: Record<string, string>) => (p: string) => Promise.resolve(files[p] ?? null);
+  it("reads Flutter, Spring and Python manifests and their env usage", async () => {
+    const files = {
+      "pubspec.yaml": "name: app\ndependencies:\n  supabase_flutter: ^2.0.0\n",
+      "lib/main.dart": "final url = String.fromEnvironment('SUPABASE_URL');",
+      "server/build.gradle.kts": 'dependencies { implementation("org.springframework.boot:spring-boot-starter-data-jpa"); runtimeOnly("org.postgresql:postgresql") }',
+      "server/src/main/resources/application.properties": "spring.datasource.url=${DATABASE_URL}\nspring.datasource.password=${DB_PASSWORD:dev}\n",
+      "api/requirements.txt": "fastapi\npsycopg2-binary==2.9\n",
+      "api/main.py": "import os\nkey = os.environ.get('API_SECRET')\n",
+    };
+    const r = await analyzeRequirements(Object.keys(files), reader(files));
+    expect(r.kind).toBe("database");
+    expect(r.engines).toContain("PostgreSQL");
+    expect(r.providers).toContain("Supabase");
+    expect(r.confidence).toBe("high");
+    const names = r.env.map((e) => e.name);
+    expect(names).toEqual(expect.arrayContaining(["DATABASE_URL", "DB_PASSWORD", "SUPABASE_URL", "API_SECRET"]));
+    expect(r.steps.at(-1)).toMatch(/Preview variables/);
+  });
+  it("flags a low-confidence 'none' when server code exists but nothing was recognised", async () => {
+    const files = { "server/index.ts": "export const x = 1;" };
+    const r = await analyzeRequirements(Object.keys(files), reader(files));
+    expect(r.kind).toBe("none");
+    expect(r.confidence).toBe("low");
+  });
+});

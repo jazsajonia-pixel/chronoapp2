@@ -65,15 +65,23 @@ export function Composer({
   const [attachActive, setAttachActive] = useState(true);
   const [uploads, setUploads] = useState<AgentAttachment[]>([]);
   const [uploadNote, setUploadNote] = useState<string | null>(null);
-  const [caret, setCaret] = useState(0);
+  const [caret, setCaret] = useState(initialText.length);
   const [selection, setSelection] = useState<{ start: number; end: number } | undefined>(undefined);
   const ref = useRef<TextInput>(null);
 
+  // A new hand-off replaces the draft; focusing the input is the only side effect.
+  const [seenInitial, setSeenInitial] = useState(initialText);
+  if (seenInitial !== initialText) {
+    setSeenInitial(initialText);
+    if (initialText) {
+      setText(initialText);
+      setCaret(initialText.length);
+    }
+  }
   useEffect(() => {
     if (!initialText) return;
-    setText(initialText);
-    setCaret(initialText.length);
-    setTimeout(() => ref.current?.focus(), 150);
+    const t = setTimeout(() => ref.current?.focus(), 150);
+    return () => clearTimeout(t);
   }, [initialText]);
 
   // @mention autocomplete for the token under the caret.
