@@ -39,6 +39,7 @@ function ActivityCard({ task, onRetry, changedFilesOverride, messageStartIndex }
   const validation = [...activities].reverse().find((item) => item.tool === "request_preview" && (item.status === "completed" || item.status === "failed"));
   const currentTitle = active?.title ?? (task.status === "running" ? "Thinking through your request" : task.status === "awaiting_plan" ? "Waiting for your approval" : task.status === "error" ? "Request ended with an error" : task.status === "stopped" ? "Stopped" : "Work completed");
   const results = useMemo(() => resultsById(task.messages), [task.messages]);
+  const knowledgeSaves = technicalMessages.flatMap((message) => (message.role === "assistant" ? (message.toolCalls ?? []) : [])).filter((call) => call.name === "save_knowledge");
   const statusIcon = (item: AgentActivity) => {
     if (item.status === "running") return <ActivityIndicator size="small" color={c.primary} accessibilityLabel="In progress" />;
     if (item.status === "completed") return <CheckCircle2 size={15} color={c.success} accessibilityLabel="Completed" />;
@@ -66,6 +67,14 @@ function ActivityCard({ task, onRetry, changedFilesOverride, messageStartIndex }
                 {item.detail ? <T variant="tiny" numberOfLines={1}>{item.detail}</T> : null}
               </View>
             </Row>
+          ))}
+        </View>
+      ) : null}
+      {/* Knowledge saves stay visible (with Undo) so nothing is remembered silently. */}
+      {!detailsOpen && knowledgeSaves.length ? (
+        <View accessibilityLabel="Saved to knowledge" testID="list-knowledge-saves" style={{ gap: 6 }}>
+          {knowledgeSaves.map((call) => (
+            <ToolRow key={call.id} call={call} result={results.get(call.id)} running={task.status === "running"} />
           ))}
         </View>
       ) : null}
