@@ -31,7 +31,7 @@ describe("analyzeRequirements", () => {
     expect(out.scripts.map((s) => s.name)).toEqual(["db:migrate"]);
     expect(out.env.map((e) => e.name)).toEqual(["DATABASE_URL", "DIRECT_URL", "NEXTAUTH_SECRET"]);
     expect(out.env.find((e) => e.name === "DATABASE_URL")).toMatchObject({ secret: true, database: true });
-    expect(out.steps.join(" ")).toMatch(/npm run db:migrate/);
+    expect(out.steps.join(" ")).toMatch(/"npm run db:migrate"/);
     expect(out.steps[0]).toMatch(/Neon, Supabase, or your own/);
   });
 

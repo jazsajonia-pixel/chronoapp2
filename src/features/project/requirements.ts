@@ -315,9 +315,9 @@ function stepsFor(
   if (otherSecrets.length) steps.push(`It also reads ${otherSecrets.slice(0, 4).join(", ")}${otherSecrets.length > 4 ? ` and ${otherSecrets.length - 4} more` : ""}.`);
   if (migrations.length) {
     const migrate = scripts.find((s) => /migrat|push|deploy/.test(s.name + s.command));
-    steps.push(`Apply ${migrations.reduce((n, m) => n + m.count, 0)} migration file(s) in ${migrations[0]!.dir}${migrate ? ` with \`npm run ${migrate.name}\`` : ""} on the development database.`);
+    steps.push(`Apply ${migrations.reduce((n, m) => n + m.count, 0)} migration file(s) in ${migrations[0]!.dir}${migrate ? ` with "npm run ${migrate.name}"` : ""} on the development database.`);
   } else if (scripts.length) {
-    steps.push(`Create the schema with \`npm run ${scripts[0]!.name}\` on the development database.`);
+    steps.push(`Create the schema with "npm run ${scripts[0]!.name}" on the development database.`);
   }
   if (envExample) steps.push(`${envExample} lists every variable the project expects.`);
   return steps;
