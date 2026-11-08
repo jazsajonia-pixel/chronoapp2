@@ -356,7 +356,8 @@ export function Switch({ value, onValueChange, disabled, label, testID }: { valu
         onValueChange(v);
       }}
       trackColor={{ false: c.surface2, true: c.primary }}
-      thumbColor={Platform.OS === "android" ? (value ? c.primaryForeground : c.mutedForeground) : undefined}
+      // On: a Paper thumb, visible on the Ember track in both themes (primaryForeground is Ink in dark mode).
+      thumbColor={Platform.OS === "android" ? (value ? "#FAF8F5" : c.mutedForeground) : undefined}
       ios_backgroundColor={c.surface2}
     />
   );
