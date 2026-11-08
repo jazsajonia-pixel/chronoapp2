@@ -2,12 +2,12 @@ import { Image, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { T } from "./kit";
 
-/** The exact gradient mark from the supplied brand reference. */
+/** Chrono's refined gradient C-arrow mark, exported from the canonical SVG. */
 export function LogoMark({ size = 32 }: { size?: number; tone?: "dark" | "light" }) {
   return (
     <Image
       source={require("../../assets/brand/chrono-symbol.png")}
-      style={{ width: size, height: size * (142 / 198) }}
+      style={{ width: size, height: size * (180 / 240) }}
       resizeMode="contain"
       accessibilityLabel="Chrono"
     />

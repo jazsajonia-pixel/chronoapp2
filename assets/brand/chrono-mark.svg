@@ -1,4 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 198 142" width="198" height="142">
-  <!-- Exact cropped symbol from the user-supplied reference; keep its gradient, cutouts and proportions unchanged. -->
-  <image href="chrono-symbol.png" width="198" height="142" preserveAspectRatio="none"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" width="960" height="720">
+  <defs>
+    <linearGradient id="chrono-c" x1="0" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#43d8ff"/>
+      <stop offset="0.48" stop-color="#168dff"/>
+      <stop offset="1" stop-color="#5944f5"/>
+    </linearGradient>
+    <linearGradient id="chrono-arrow" x1="0" y1="0" x2="1" y2="0.35">
+      <stop offset="0" stop-color="#39caff"/>
+      <stop offset="0.58" stop-color="#1678ff"/>
+      <stop offset="1" stop-color="#4773ff"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#chrono-c)" d="M178 28C161 13 140 6 116 6 65 6 23 40 13 85 2 132 37 172 84 176c33 3 62-10 83-34l-22-20c-15 16-33 23-53 22-30-2-51-26-48-55 3-31 31-54 66-54 18 0 33 6 45 16z"/>
+  <path fill="url(#chrono-arrow)" d="M105 63h68V47l63 43-63 43v-16h-68l34-27z"/>
 </svg>

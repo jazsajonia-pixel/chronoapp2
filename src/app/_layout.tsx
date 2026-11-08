@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { View } from "react-native";
 import { Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { StatusBar } from "expo-status-bar";
+import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
 import * as Network from "expo-network";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -36,13 +36,21 @@ installErrorReporting();
 
 export { AppErrorBoundary as ErrorBoundary };
 
-function Chrome() {
+function Chrome({
+  launchVisible,
+  onSessionRestoringChange,
+}: {
+  launchVisible: boolean;
+  onSessionRestoringChange: (restoring: boolean) => void;
+}) {
   const { c, dark } = useTheme();
   const pathname = usePathname();
   const drawerOpen = useDrawerOpen();
   const { loading: restoring } = useSession();
-  const [launchVisible, setLaunchVisible] = useState(restoring);
-  const hideLaunch = useCallback(() => setLaunchVisible(false), []);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => onSessionRestoringChange(restoring));
+    return () => cancelAnimationFrame(frame);
+  }, [onSessionRestoringChange, restoring]);
   useEffect(() => setMonitoringRoute(pathname), [pathname]);
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(c.background).catch(() => {});
@@ -53,8 +61,8 @@ function Chrome() {
   }, []);
   return (
     <View style={{ flex: 1, backgroundColor: c.background }}>
-      <StatusBar style={dark ? "light" : "dark"} />
-      {/* While the drawer is open, screen readers stay inside it (the drawer used to be a Modal). */}
+      <ExpoStatusBar hidden={launchVisible} style={dark ? "light" : "dark"} />
+      {/* While the drawer or launch screen is open, screen readers stay in the active layer. */}
       <View style={{ flex: 1 }} importantForAccessibility={drawerOpen || launchVisible ? "no-hide-descendants" : "auto"} accessibilityElementsHidden={drawerOpen || launchVisible}>
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.background }, animation: "slide_from_right" }}>
           <Stack.Screen name="index" options={{ animation: "fade" }} />
@@ -65,7 +73,6 @@ function Chrome() {
       <AppDrawer />
       <CommandPalette />
       <ToastHost />
-      {launchVisible ? <LaunchScreen restoring={restoring} onDone={hideLaunch} /> : null}
     </View>
   );
 }
@@ -73,29 +80,44 @@ function Chrome() {
 export default function RootLayout() {
   const [ready, setReady] = useState(false);
   const [fontsLoaded, fontError] = useFonts({ Geist_400Regular, Geist_500Medium, Geist_600SemiBold, Geist_700Bold, GeistMono_400Regular, GeistMono_500Medium });
+  const [launchVisible, setLaunchVisible] = useState(true);
+  const [sessionRestoring, setSessionRestoring] = useState(true);
+  const hideLaunch = useCallback(() => setLaunchVisible(false), []);
+  const reportSessionRestoring = useCallback((restoring: boolean) => setSessionRestoring(restoring), []);
+
   useEffect(() => {
-    // Both are local reads (a few ms). Reading the keychain here lets a signed-out start skip the
-    // launch screen entirely; failures fall through (no saved session / default settings).
+    // Hydrate local app state while the animated launch overlay is already visible.
     void Promise.all([hydrateStorage().catch(() => {}), loadSessionToken().catch(() => null)])
       .finally(() => {
         reloadSkillsCache();
         setReady(true);
       });
   }, []);
+
   // A font failure falls back to system fonts rather than blocking the app.
   const fonts = fontsLoaded || !!fontError;
+  const appReady = ready && fonts;
   useEffect(() => {
-    if (ready && fonts) void SplashScreen.hideAsync().catch(() => {});
-  }, [ready, fonts]);
-  if (!ready || !fonts) return null;
+    // Reveal the React launch overlay on the first committed frame, not only after boot completes.
+    void SplashScreen.hideAsync().catch(() => {});
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <ThemeProvider>
-          <SessionProvider>
-            <Chrome />
-          </SessionProvider>
-        </ThemeProvider>
+        <View style={{ flex: 1, backgroundColor: "#080A10" }}>
+          {!appReady ? <ExpoStatusBar hidden style="light" /> : null}
+          {appReady ? (
+            <ThemeProvider>
+              <SessionProvider>
+                <Chrome launchVisible={launchVisible} onSessionRestoringChange={reportSessionRestoring} />
+              </SessionProvider>
+            </ThemeProvider>
+          ) : null}
+          {launchVisible ? (
+            <LaunchScreen appReady={appReady} fontsReady={fonts} restoring={sessionRestoring} onDone={hideLaunch} />
+          ) : null}
+        </View>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
