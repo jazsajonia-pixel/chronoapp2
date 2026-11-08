@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { listProviders } from "./api";
+import { useSession } from "@/stores/session";
 import type { ProvidersResponse } from "@/types/ai";
 
 export type ProvidersState =
@@ -19,7 +20,26 @@ export function useProviders() {
     );
   }, []);
 
-  useEffect(reload, [reload]);
+  useEffect(() => {
+    // State starts as "loading", so the first fetch needs no synchronous update.
+    listProviders().then(
+      (data) => setState({ status: "ready", data }),
+      (error: unknown) => setState({ status: "error", error }),
+    );
+  }, []);
+
+  // Fetch again once a lost connection comes back, so "Couldn't load providers" clears by itself.
+  const { reconnecting } = useSession();
+  const wasReconnecting = useRef(reconnecting);
+  useEffect(() => {
+    const back = wasReconnecting.current && !reconnecting;
+    wasReconnecting.current = reconnecting;
+    if (!back) return;
+    listProviders().then(
+      (data) => setState({ status: "ready", data }),
+      (error: unknown) => setState({ status: "error", error }),
+    );
+  }, [reconnecting]);
 
   /** Mutations return the full new list — apply it without refetching. */
   const apply = useCallback((data: ProvidersResponse) => setState({ status: "ready", data }), []);

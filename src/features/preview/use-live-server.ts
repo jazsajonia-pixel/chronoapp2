@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useWorkspace } from "@/features/workspace/context";
 import { api } from "@/lib/api";
 import { AppError } from "@/lib/errors";
+import { liveOmitFolders, type LiveRuntime } from "@/lib/live-runtime";
 import { collectLiveFiles, sanitizeLiveResponse, type LiveServerState } from "./live-files";
 
 /**
@@ -16,7 +17,7 @@ function describeFailure(error: unknown, fallback: string): string {
   return error instanceof AppError && error.requestId ? `${message} (request ${error.requestId})` : message;
 }
 
-export function useLiveServer(owner: string, repo: string) {
+export function useLiveServer(owner: string, repo: string, runtime?: LiveRuntime) {
   const workspace = useWorkspace();
   const { commitSha, storageKey } = workspace.source;
   const [state, setState] = useState<LiveServerState>({ status: "idle" });
@@ -51,7 +52,7 @@ export function useLiveServer(owner: string, repo: string) {
     setState((cur) => ({ ...cur, status: "starting", error: undefined, message: "Collecting the current workspace…" }));
     try {
       const ws = workspaceRef.current;
-      const { files, assets } = await collectLiveFiles(ws.paths, ws.getBuffer);
+      const { files, assets } = await collectLiveFiles(ws.paths, ws.getBuffer, undefined, runtime ? liveOmitFolders(runtime) : []);
       if (gen !== generation.current) return;
       const result = await api<unknown>("/preview-server", {
         method: "POST",
@@ -64,7 +65,7 @@ export function useLiveServer(owner: string, repo: string) {
     } finally {
       busy.current = false;
     }
-  }, [owner, repo, commitSha, apply]);
+  }, [owner, repo, commitSha, apply, runtime]);
 
   const stop = useCallback(async () => {
     if (busy.current) return;
@@ -82,7 +83,7 @@ export function useLiveServer(owner: string, repo: string) {
 
   const reload = useCallback(() => setFrameKey((k) => k + 1), []);
 
-  // Poll quickly while the sandbox boots, slowly while it runs (it expires after ~10 minutes).
+  // Poll quickly while the sandbox boots, slowly while it runs (it expires after 10–20 minutes).
   useEffect(() => {
     if (state.status !== "starting" && state.status !== "running") return;
     const timer = setInterval(() => void refresh().catch(() => undefined), state.status === "starting" ? 2_500 : 10_000);

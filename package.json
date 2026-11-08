@@ -1,7 +1,7 @@
 {
   "name": "chronoapp2",
   "main": "expo-router/entry",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "dependencies": {
     "@expo-google-fonts/geist": "^0.4.2",
     "@expo-google-fonts/geist-mono": "^0.4.3",

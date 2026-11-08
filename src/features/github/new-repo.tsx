@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { Globe, Lock } from "lucide-react-native";
 import { AppError, describeError } from "@/lib/errors";
@@ -30,7 +30,9 @@ export function NewRepoSheet({ open, onOpenChange, owner, canCreatePrivate, onCr
   const [readme, setReadme] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
+  const [wasOpen, setWasOpen] = useState(open);
+  if (wasOpen !== open) {
+    setWasOpen(open);
     if (open) {
       setName("");
       setDescription("");
@@ -38,7 +40,7 @@ export function NewRepoSheet({ open, onOpenChange, owner, canCreatePrivate, onCr
       setReadme(true);
       setError(null);
     }
-  }, [open]);
+  }
   const nameErr = repoNameError(name);
 
   async function submit() {

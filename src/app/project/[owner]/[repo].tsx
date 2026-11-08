@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useEffect, useMemo, useState, type ReactNode } from "react";
 import { KeyboardAvoidingView, Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -34,9 +34,13 @@ function toProjectRef(repo: RepoSummary): ProjectRef {
 function PaletteFiles({ name, branch, goFiles }: { name: string; branch: string; goFiles: () => void }) {
   const ws = useWorkspace();
   const openRef = useRef(ws.openFile);
-  openRef.current = ws.openFile;
+  useLayoutEffect(() => {
+    openRef.current = ws.openFile;
+  });
   const goRef = useRef(goFiles);
-  goRef.current = goFiles;
+  useLayoutEffect(() => {
+    goRef.current = goFiles;
+  });
   useEffect(
     () =>
       registerPaletteFiles({
@@ -184,39 +188,45 @@ function GitHubWorkspace({ owner, name, initialTab }: { owner: string; name: str
     router.setParams({ tab: t });
   };
   const params = useLocalSearchParams<{ tab?: string; branch?: string }>();
-  useEffect(() => {
+  // Follow tab changes that arrive through the route (drawer links, deep links).
+  const [seenTabParam, setSeenTabParam] = useState(params.tab);
+  if (seenTabParam !== params.tab) {
+    setSeenTabParam(params.tab);
     if (isWorkspaceTab(params.tab) && params.tab !== tab) {
       setTabState(params.tab);
       setVisited((v) => new Set(v).add(params.tab as WorkspaceTab));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.tab]);
+  }
 
   const repo = useAsync(() => githubApi.repo(owner, name), [owner, name]);
   const branches = useAsync(() => githubApi.branches(owner, name), [owner, name]);
   const [branch, setBranch] = useState<string | null>(() => (typeof params.branch === "string" && params.branch ? params.branch : lastBranch(owner, name)));
   // A chat link (drawer / Chats) can carry its branch; follow it if this workspace is already open.
-  useEffect(() => {
+  const [seenBranchParam, setSeenBranchParam] = useState(params.branch);
+  if (seenBranchParam !== params.branch) {
+    setSeenBranchParam(params.branch);
     if (typeof params.branch === "string" && params.branch) setBranch(params.branch);
-  }, [params.branch]);
+  }
   const [pickerOpen, setPickerOpen] = useState(false);
   const [created, setCreated] = useState<ReadonlySet<string>>(() => new Set());
   const [gitVersion, setGitVersion] = useState(0);
 
-  useEffect(() => {
-    if (repo.status !== "success") return;
-    if (!branch) setBranch(repo.data.defaultBranch);
-    else if (branches.status === "success" && !created.has(branch) && !branches.data.branches.some((b) => b.name === branch) && !branches.data.truncated) setBranch(repo.data.defaultBranch);
-  }, [repo, branches, branch, created]);
+  // No branch yet, or one that no longer exists: fall back to the default branch.
+  if (repo.status === "success" && branch !== repo.data.defaultBranch) {
+    const missing = !branch || (branches.status === "success" && !created.has(branch) && !branches.data.branches.some((b) => b.name === branch) && !branches.data.truncated);
+    if (missing) setBranch(repo.data.defaultBranch);
+  }
   useEffect(() => {
     if (branch && repo.status === "success") rememberRepo(owner, name, branch);
   }, [owner, name, branch, repo.status]);
 
   const tree = useAsync(() => (branch ? githubApi.tree(owner, name, branch) : new Promise<never>(() => {})), [owner, name, branch]);
   const [syncedAt, setSyncedAt] = useState<string | null>(null);
-  useEffect(() => {
-    if (tree.status === "success") setSyncedAt(new Date().toISOString());
-  }, [tree.status, tree.data]);
+  const [syncedTree, setSyncedTree] = useState<unknown>(null);
+  if (tree.status === "success" && tree.data !== syncedTree) {
+    setSyncedTree(tree.data);
+    setSyncedAt(new Date().toISOString());
+  }
 
   const source = useMemo<WorkspaceSource | null>(() => {
     if (tree.status !== "success" || !branch) return null;
@@ -383,3 +393,6 @@ export default function WorkspaceScreen() {
   }
   return <GitHubWorkspace key={`${owner}/${repo}`} owner={owner} name={repo} initialTab={tab} />;
 }
+
+// A crash here stays on this screen (Try again / Go home) instead of taking down the app.
+export { ScreenErrorBoundary as ErrorBoundary } from "@/components/error-boundary";

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Pressable, ScrollView, TextInput, View } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import { ExternalLink, Eye, EyeOff, PlugZap } from "lucide-react-native";
@@ -31,12 +31,14 @@ export function ProviderForm({ open, onOpenChange, editing, storageNote, onSaved
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  // Reset the form when the sheet opens/closes or switches provider (during render, not in an effect).
+  const [formFor, setFormFor] = useState<{ open: boolean; editing: typeof editing }>({ open: false, editing: null });
+  if (formFor.open !== open || formFor.editing !== editing) {
+    setFormFor({ open, editing });
     if (!open) {
       setApiKey("");
       setShowKey(false);
-      return;
-    }
+    } else {
     const k = editing?.kind ?? "openai";
     setKind(k);
     setLabel(editing?.label ?? "");
@@ -48,7 +50,8 @@ export function ProviderForm({ open, onOpenChange, editing, storageNote, onSaved
     setModels([]);
     setTest({ status: "idle" });
     setError(null);
-  }, [open, editing]);
+    }
+  }
 
   const meta = PROVIDERS[kind];
   const suggestions = Array.from(new Set([...meta.suggestedModels, ...models]));

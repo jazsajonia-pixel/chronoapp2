@@ -2,7 +2,7 @@
   "expo": {
     "name": "Chrono",
     "slug": "chronoapp2",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "chronoapp2",
@@ -19,7 +19,7 @@
     "android": {
       "package": "com.chrono.app2",
       "softwareKeyboardLayoutMode": "resize",
-      "versionCode": 3,
+      "versionCode": 4,
       "adaptiveIcon": {
         "backgroundColor": "#FF7A3C",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

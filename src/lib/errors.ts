@@ -1,7 +1,7 @@
 /**
  * Central error vocabulary. Every failure shown in the UI maps to one of these codes so
  * messages stay consistent and understandable ("what happened" + "what to do next").
- * The same codes are emitted by Netlify Functions (see netlify/lib/http.ts).
+ * The same codes are emitted by the Chrono API (netlify/lib/http.ts in the website repo, served on Vercel).
  */
 import { ERROR_CODES, isErrorCode, type ErrorCode } from "./error-codes";
 
@@ -22,8 +22,8 @@ const COPY: Record<ErrorCode, ErrorCopy> = {
     hint: "Mobile networks can be slow — try again in a moment.",
   },
   BACKEND_UNAVAILABLE: {
-    title: "Backend not reachable",
-    hint: "Chrono's server didn't answer. Check your connection, then try again in a moment.",
+    title: "Can't reach Chrono",
+    hint: "Chrono's server didn't answer. Check your connection and try again in a moment. Work on this device is kept.",
   },
   UNAUTHENTICATED: {
     title: "Sign in required",
@@ -35,17 +35,17 @@ const COPY: Record<ErrorCode, ErrorCopy> = {
   },
   FORBIDDEN: {
     title: "Missing permission",
-    hint: "Your GitHub account can't access this resource. Check the repository's access settings.",
+    hint: "Your GitHub account can't do this here. If it's a private repository, sign in again with private access, or ask the owner for access.",
   },
   NOT_FOUND: { title: "Not found", hint: "It may have been moved, renamed, or deleted." },
   RATE_LIMITED: {
     title: "Rate limit reached",
     hint: "Too many requests in a short time. Wait a minute and try again.",
   },
-  VALIDATION_FAILED: { title: "Invalid request", hint: "Some input wasn't accepted. Review it and retry." },
+  VALIDATION_FAILED: { title: "That wasn't accepted", hint: "Check what you entered and try again." },
   GITHUB_OAUTH_NOT_CONFIGURED: {
     title: "GitHub sign-in isn't configured",
-    hint: "Set GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET and SESSION_SECRET in Netlify environment variables.",
+    hint: "This Chrono server isn't set up for GitHub sign-in yet. If you run it, add GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET and SESSION_SECRET to its environment variables.",
   },
   OAUTH_DENIED: {
     title: "GitHub access wasn't granted",
@@ -57,7 +57,7 @@ const COPY: Record<ErrorCode, ErrorCopy> = {
   },
   OAUTH_EXCHANGE_FAILED: {
     title: "GitHub sign-in failed",
-    hint: "GitHub didn't accept the sign-in. Check the OAuth app's client ID, secret and callback URL.",
+    hint: "GitHub didn't complete the sign-in. Try again; if it keeps failing, the server's GitHub app settings need checking.",
   },
   GITHUB_UNAVAILABLE: {
     title: "GitHub isn't responding",
@@ -69,11 +69,11 @@ const COPY: Record<ErrorCode, ErrorCopy> = {
   },
   FILE_TOO_LARGE: {
     title: "File too large to open",
-    hint: "Files over 1 MB can't be opened on mobile yet. View it on GitHub instead.",
+    hint: "Files over 1 MB can't be opened in the editor. View it on GitHub instead.",
   },
   AI_NOT_CONFIGURED: {
-    title: "AI provider storage isn't set up",
-    hint: "The server needs SESSION_SECRET (session-only keys) or ENCRYPTION_KEY + DATABASE_URL (saved keys).",
+    title: "Saving API keys isn't available",
+    hint: "This Chrono server isn't set up to store provider keys. If you run it, set SESSION_SECRET (session-only keys) or ENCRYPTION_KEY and DATABASE_URL (saved keys).",
   },
   AI_INVALID_KEY: {
     title: "The provider rejected the API key",
@@ -101,7 +101,7 @@ const COPY: Record<ErrorCode, ErrorCopy> = {
   },
   AI_STORAGE_FULL: {
     title: "Too many session-only providers",
-    hint: "Remove one, or ask the operator to enable encrypted database storage for more.",
+    hint: "Remove one to add another. Servers with encrypted key storage enabled allow more.",
   },
   BINARY_FILE: {
     title: "Binary file",
@@ -109,11 +109,11 @@ const COPY: Record<ErrorCode, ErrorCopy> = {
   },
   NOT_IMPLEMENTED: {
     title: "Not available yet",
-    hint: "This capability is planned for an upcoming phase.",
+    hint: "This isn't supported yet.",
   },
   UNSUPPORTED_PROJECT: {
     title: "Unsupported project type",
-    hint: "This project requires a runtime that Chrono cannot run in-browser yet.",
+    hint: "Chrono can't run this kind of project yet. Preview → Live server lists what it supports.",
   },
   GIT_CONFLICT: {
     title: "The branch changed on GitHub",
@@ -127,7 +127,7 @@ const COPY: Record<ErrorCode, ErrorCopy> = {
     hint: "GitHub doesn't allow direct commits to this branch. Commit to a new branch and open a pull request.",
   },
   NO_CHANGES: { title: "Nothing to commit", hint: "These changes are already on the branch." },
-  INTERNAL: { title: "Something went wrong", hint: "An unexpected error occurred. Try again." },
+  INTERNAL: { title: "Something went wrong", hint: "Try again. If it keeps happening, quote the reference below when reporting it." },
 };
 
 export class AppError extends Error {
@@ -148,9 +148,15 @@ export class AppError extends Error {
   }
 }
 
+/** Codes whose server message is more useful than the generic hint (it says what was wrong). */
+const SPECIFIC = new Set<ErrorCode>(["VALIDATION_FAILED", "UNSUPPORTED_PROJECT", "NOT_IMPLEMENTED"]);
+
 export function describeError(error: unknown): ErrorCopy & { code: ErrorCode; requestId?: string } {
   const code: ErrorCode = error instanceof AppError ? error.code : "INTERNAL";
-  return { code, ...COPY[code], requestId: error instanceof AppError ? error.requestId : undefined };
+  const copy = COPY[code];
+  const message = error instanceof AppError ? error.message.trim() : "";
+  const hint = SPECIFIC.has(code) && message && message !== copy.title ? message : copy.hint;
+  return { code, title: copy.title, hint, requestId: error instanceof AppError ? error.requestId : undefined };
 }
 
 /** Map an HTTP status to the closest error code when the server didn't send one. */

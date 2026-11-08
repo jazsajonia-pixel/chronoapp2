@@ -39,6 +39,7 @@ function ActivityCard({ task, onRetry, changedFilesOverride, messageStartIndex }
   const validation = [...activities].reverse().find((item) => item.tool === "request_preview" && (item.status === "completed" || item.status === "failed"));
   const currentTitle = active?.title ?? (task.status === "running" ? "Thinking through your request" : task.status === "awaiting_plan" ? "Waiting for your approval" : task.status === "error" ? "Request ended with an error" : task.status === "stopped" ? "Stopped" : "Work completed");
   const results = useMemo(() => resultsById(task.messages), [task.messages]);
+  const knowledgeSaves = technicalMessages.flatMap((message) => (message.role === "assistant" ? (message.toolCalls ?? []) : [])).filter((call) => call.name === "save_knowledge");
   const statusIcon = (item: AgentActivity) => {
     if (item.status === "running") return <ActivityIndicator size="small" color={c.primary} accessibilityLabel="In progress" />;
     if (item.status === "completed") return <CheckCircle2 size={15} color={c.success} accessibilityLabel="Completed" />;
@@ -66,6 +67,14 @@ function ActivityCard({ task, onRetry, changedFilesOverride, messageStartIndex }
                 {item.detail ? <T variant="tiny" numberOfLines={1}>{item.detail}</T> : null}
               </View>
             </Row>
+          ))}
+        </View>
+      ) : null}
+      {/* Knowledge saves stay visible (with Undo) so nothing is remembered silently. */}
+      {!detailsOpen && knowledgeSaves.length ? (
+        <View accessibilityLabel="Saved to knowledge" testID="list-knowledge-saves" style={{ gap: 6 }}>
+          {knowledgeSaves.map((call) => (
+            <ToolRow key={call.id} call={call} result={results.get(call.id)} running={task.status === "running"} />
           ))}
         </View>
       ) : null}
@@ -220,16 +229,23 @@ export function AgentPanel({ project, onTab }: { project: AgentProject; active?:
     setPrefill(p);
   };
   useEffect(() => {
-    consumePrefill(prefill);
+    // The first hand-off is already in state (see useState above); just claim it.
+    if (prefill) {
+      safeStorage.remove(`agent-prefill:${ws.source.storageKey}`, "session");
+      agent.startNew();
+    }
     // The AI tab stays mounted, so later hand-offs arrive as events.
     return on("agent-prefill", (d) => {
       const key = (d as { storageKey?: string } | undefined)?.storageKey;
       if (key === ws.source.storageKey) consumePrefill(readPrefill(key));
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
+  // Switching conversations picks up that conversation's mode.
+  const [seenTaskId, setSeenTaskId] = useState(task?.id);
+  if (seenTaskId !== task?.id) {
+    setSeenTaskId(task?.id);
     if (task && !prefill) setMode(task.mode);
-  }, [task?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   // Follow the conversation as it grows.
   const size = task ? task.messages.length + Object.keys(task.proposal).length + (task.activities ?? []).length + task.status.length : 0;

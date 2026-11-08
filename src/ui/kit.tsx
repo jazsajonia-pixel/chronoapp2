@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -356,7 +356,8 @@ export function Switch({ value, onValueChange, disabled, label, testID }: { valu
         onValueChange(v);
       }}
       trackColor={{ false: c.surface2, true: c.primary }}
-      thumbColor={Platform.OS === "android" ? (value ? c.primaryForeground : c.mutedForeground) : undefined}
+      // On: a Paper thumb, visible on the Ember track in both themes (primaryForeground is Ink in dark mode).
+      thumbColor={Platform.OS === "android" ? (value ? "#FAF8F5" : c.mutedForeground) : undefined}
       ios_backgroundColor={c.surface2}
     />
   );
@@ -461,7 +462,7 @@ export function ErrorState({ error, onRetry, style }: { error: unknown; onRetry?
 
 export function Skeleton({ height = 16, width = "100%", style }: { height?: number; width?: number | `${number}%`; style?: StyleProp<ViewStyle> }) {
   const { c } = useTheme();
-  const v = useRef(new Animated.Value(0.5)).current;
+  const [v] = useState(() => new Animated.Value(0.5));
   useEffect(() => {
     const loop = Animated.loop(Animated.sequence([Animated.timing(v, { toValue: 1, duration: 700, useNativeDriver: true }), Animated.timing(v, { toValue: 0.5, duration: 700, useNativeDriver: true })]));
     loop.start();
@@ -608,12 +609,16 @@ export function PromptSheet({
 }) {
   const [value, setValue] = useState(initial);
   const [err, setErr] = useState<string | null>(null);
-  useEffect(() => {
+  // Reset the field each time the sheet opens (adjusting state during render, not in an effect).
+  const [openedWith, setOpenedWith] = useState<string | null>(open ? initial : null);
+  const marker = open ? initial : null;
+  if (marker !== openedWith) {
+    setOpenedWith(marker);
     if (open) {
       setValue(initial);
       setErr(null);
     }
-  }, [open, initial]);
+  }
   const submit = () => {
     const e = validate?.(value.trim()) ?? null;
     if (e) return setErr(e);

@@ -159,14 +159,18 @@ function SkillEditor({ open, skill, onClose, onSubmit }: { open: boolean; skill:
   const [instructions, setInstructions] = useState("");
   const [touched, setTouched] = useState(false);
   const [busy, setBusy] = useState(false);
-  useEffect(() => {
-    if (!open) return;
+  // Refill the form whenever the sheet opens or switches skill (during render, not in an effect).
+  const [filledFor, setFilledFor] = useState<{ open: boolean; skill: UserSkill | null }>({ open: false, skill: null });
+  if (filledFor.open !== open || filledFor.skill !== skill) {
+    setFilledFor({ open, skill });
+    if (open) {
     setName(skill?.name ?? "");
     setDescription(skill?.description ?? "");
     setInstructions(skill?.instructions ?? "");
     setTouched(false);
     setBusy(false);
-  }, [open, skill]);
+    }
+  }
   const nameErr = !name.trim() ? "Give the skill a name." : null;
   const instrErr = !instructions.trim() ? "Write what the agent should do." : null;
   const submit = async () => {
@@ -211,3 +215,6 @@ function SkillEditor({ open, skill, onClose, onSubmit }: { open: boolean; skill:
     </Sheet>
   );
 }
+
+// A crash here stays on this screen (Try again / Go home) instead of taking down the app.
+export { ScreenErrorBoundary as ErrorBoundary } from "@/components/error-boundary";

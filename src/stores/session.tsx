@@ -10,6 +10,7 @@ import { checkSession } from "@/lib/session-check";
 import { AppError, type ErrorCode, isErrorCode } from "@/lib/errors";
 import { on } from "@/lib/events";
 import { getSessionToken, loadSessionToken, setSessionToken } from "@/lib/token";
+import { safeStorage } from "@/lib/storage";
 
 /**
  * Client session state (native). Same server session as the website: GET /api/auth/session, with
@@ -23,12 +24,40 @@ interface SessionContextValue {
   endedReason: ErrorCode | null;
   /** A saved session exists but the server couldn't be reached to confirm it. */
   restoreError: ErrorCode | null;
+  /** Signed in from the cached profile while the server check keeps retrying in the background. */
+  reconnecting: boolean;
   signIn: (includePrivate: boolean) => Promise<void>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
+
+/**
+ * Last confirmed profile (login, name, avatar, scopes, expiry — never the token). With a saved
+ * token it lets the app open straight to Home while the server check runs in the background.
+ */
+const PROFILE_KEY = "session-profile";
+type GitHubSession = Extract<Session, { mode: "github" }>;
+
+function readProfile(): GitHubSession | null {
+  if (!getSessionToken()) return null;
+  try {
+    const p = JSON.parse(safeStorage.get(PROFILE_KEY) ?? "null") as GitHubSession | null;
+    if (!p || p.mode !== "github" || !p.user?.login || !(Date.parse(p.expiresAt) > Date.now())) return null;
+    return p;
+  } catch {
+    return null;
+  }
+}
+
+function saveProfile(s: Session) {
+  if (s.mode === "github") safeStorage.set(PROFILE_KEY, JSON.stringify(s));
+  else safeStorage.remove(PROFILE_KEY);
+}
+
+/** Background re-check delays while the server is unreachable (then every minute). */
+const RETRY_MS = [4_000, 10_000, 30_000, 60_000];
 
 /** Restore the saved session. Only a definitive "signed out" from the server deletes the token. */
 async function fetchGitHubSession(): Promise<{ session: Session; unreachable: ErrorCode | null }> {
@@ -84,16 +113,36 @@ async function nativeGitHubSignIn(includePrivate: boolean): Promise<string> {
 }
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session>({ mode: "anonymous" });
-  // The root layout reads the keychain before the native splash hides, so a signed-out start never
-  // waits on the network: only a saved session needs the server check (shown as the launch screen).
-  const [loading, setLoading] = useState(() => getSessionToken() !== null);
+  // The root layout reads the keychain and local storage before this mounts. A signed-out start never
+  // waits on the network, and neither does a saved session with a cached profile: only a saved token
+  // without a profile (first run after an update) waits on the launch screen for the server check.
+  const [cached] = useState(readProfile);
+  const [session, setSession] = useState<Session>(cached ?? { mode: "anonymous" });
+  const [loading, setLoading] = useState(() => getSessionToken() !== null && !cached);
   const [endedReason, setEndedReason] = useState<ErrorCode | null>(null);
   const [restoreError, setRestoreError] = useState<ErrorCode | null>(null);
+  const [reconnecting, setReconnecting] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   const apply = useCallback((r: { session: Session; unreachable: ErrorCode | null }) => {
-    setSession(r.session);
+    if (r.unreachable && getSessionToken()) {
+      // Server unreachable: keep a cached sign-in and retry quietly instead of signing out.
+      const profile = readProfile();
+      if (profile) {
+        setSession(profile);
+        setRestoreError(null);
+        setReconnecting(true);
+        return;
+      }
+    }
+    setSession((cur) => {
+      // A saved sign-in the server now rejects gets a reason on the sign-in screen.
+      if (cur.mode === "github" && r.session.mode !== "github" && !r.unreachable) setEndedReason("SESSION_EXPIRED");
+      return r.session;
+    });
+    saveProfile(r.unreachable ? { mode: "anonymous" } : r.session);
     setRestoreError(r.unreachable);
+    setReconnecting(false);
   }, []);
 
   const refresh = useCallback(async () => {
@@ -116,12 +165,27 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     };
   }, [apply]);
 
+  useEffect(() => {
+    if (!reconnecting) return;
+    const t = setTimeout(() => {
+      void fetchGitHubSession()
+        .catch((): { session: Session; unreachable: ErrorCode | null } => ({ session: { mode: "anonymous" }, unreachable: "BACKEND_UNAVAILABLE" }))
+        .then((r) => {
+          apply(r);
+          setAttempt((n) => (r.unreachable ? n + 1 : 0));
+        });
+    }, RETRY_MS[Math.min(attempt, RETRY_MS.length - 1)]);
+    return () => clearTimeout(t);
+  }, [reconnecting, attempt, apply]);
+
   useEffect(
     () =>
       on(SESSION_EXPIRED_EVENT, (detail) => {
         const code = detail as ErrorCode;
         void setSessionToken(null);
+        saveProfile({ mode: "anonymous" });
         setRestoreError(null);
+        setReconnecting(false);
         setSession((cur) => (cur.mode === "github" ? { mode: "anonymous" } : cur));
         setEndedReason(code === "UNAUTHENTICATED" ? "SESSION_EXPIRED" : code);
       }),
@@ -150,14 +214,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
     }
     await setSessionToken(null);
+    saveProfile({ mode: "anonymous" });
     setEndedReason(null);
     setRestoreError(null);
+    setReconnecting(false);
     setSession({ mode: "anonymous" });
   }, []);
 
   const value = useMemo<SessionContextValue>(
-    () => ({ session, loading, isAuthed: session.mode === "github", endedReason, restoreError, signIn, signOut, refresh }),
-    [session, loading, endedReason, restoreError, signIn, signOut, refresh],
+    () => ({ session, loading, isAuthed: session.mode === "github", endedReason, restoreError, reconnecting, signIn, signOut, refresh }),
+    [session, loading, endedReason, restoreError, reconnecting, signIn, signOut, refresh],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
